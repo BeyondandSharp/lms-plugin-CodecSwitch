@@ -111,6 +111,33 @@ The target must be in the player's reported formats. For example, a player that
 reports `pcm` but not `wav` will not be offered WAV; it can still receive FLAC,
 MP3, Ogg Vorbis or AIFF if it reports those formats.
 
+## SACDPlayer integration (DST/DFF)
+
+When `SACDPlayer` is enabled, CodecSwitch hands `dff`/`dsf` profiles to
+SACDPlayer instead of registering competing rules. If a DSD source has a target
+format in CodecSwitch, the pipeline becomes:
+
+```text
+DST/DFF/DSF -> SACDPlayer PCM/FLAC -> CodecSwitch target encoder -> player
+```
+
+Details:
+
+- CodecSwitch asks SACDPlayer for its FLAC/PCM output (forcing `flc`), then
+  pipes that stream into the target encoder. The player only receives the final
+  target format.
+- This requires SACDPlayer's FFmpeg path to work, because SACDPlayer's FLAC/PCM
+  output uses FFmpeg. The second stage uses CodecSwitch's configured backend
+  (native tools or FFmpeg).
+- Target `FLAC` uses SACDPlayer's FLAC output directly; no second stage.
+- When a DSD source has a target mapping, SACDPlayer's own Native/DoP output
+  mode is bypassed in favour of the PCM/FLAC intermediate. To keep SACD
+  Native/DoP output, set `dff`/`dsf` to **Pass-through** in CodecSwitch.
+- If SACDPlayer is disabled, CodecSwitch falls back to its own FFmpeg DFF path
+  when FFmpeg is available.
+- If SACDPlayer has no usable FFmpeg path, DSD targets are hidden and only
+  pass-through/skip remain.
+
 ## Remote streams
 
 Local files use the full native/FFmpeg toolchain. HTTP(S) streams get target
@@ -171,5 +198,8 @@ make bundle RELEASE_BASE=https://example.test/releases/download
 - The worker limit relies on `flock`; it is not available on Windows.
 - Pass-through is not a guarantee of bit-perfect output when the player does
   not support the source codec.
+- When both SACDPlayer and CodecSwitch are enabled, DSD target mappings use
+  SACDPlayer's PCM/FLAC output followed by a CodecSwitch encoder. SACDPlayer's
+  Native/DoP modes are bypassed for those mappings.
 - The plugin does not modify LMS core files and does not handle player-side
   decoding.

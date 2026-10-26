@@ -311,9 +311,100 @@ sub plan {
     return undef;
 }
 
+sub _post_candidates {
+    my ($class, $input_format, $target) = @_;
+    return ('ffmpeg') unless $target->{native};
+    my $pref = $class->backend_pref($target);
+    return ('native', 'ffmpeg') if $pref eq 'auto';
+    return ($pref, $pref eq 'native' ? 'ffmpeg' : 'native');
+}
+
+sub post_plan {
+    my ($class, $client, $target_key, $input_format) = @_;
+    my $target = Plugins::CodecSwitch::Config->target_by_key($target_key) or return undef;
+    my $resolved = Plugins::CodecSwitch::Config->resolve_target($client, $target_key) or return undef;
+    return undef if $resolved->{lms_format} eq $input_format;
+
+    my $tools = $class->tools;
+    my $gate = $class->_gate;
+    my %seen;
+
+    for my $backend ($class->_post_candidates($input_format, $target)) {
+        next if $seen{$backend}++;
+        my $plan;
+        if ($backend eq 'ffmpeg') {
+            next unless $class->ffmpeg_encoder_ok($target);
+            $plan = Plugins::CodecSwitch::CommandBuilder->ffmpeg_pipe_plan({
+                source       => $input_format,
+                target       => $target,
+                lms_format   => $resolved->{lms_format},
+                input_format => $input_format,
+                tools        => $tools,
+                gate         => $gate,
+            });
+        }
+        else {
+            next unless $class->native_ok($input_format, $target);
+            $plan = Plugins::CodecSwitch::CommandBuilder->native_pipe_plan({
+                source       => $input_format,
+                target       => $target,
+                lms_format   => $resolved->{lms_format},
+                input_format => $input_format,
+                tools        => $tools,
+                gate         => $gate,
+            });
+        }
+        return $plan if $plan;
+    }
+
+    return undef;
+}
+
+sub sacd_flc_available {
+    my ($class, $client, $source) = @_;
+    return 0 unless Plugins::CodecSwitch::Config->sacd_enabled;
+    return 0 unless Plugins::CodecSwitch::Config->is_dsd_source($source);
+    return 0 unless $client;
+
+    my $id = eval { $client->id } || eval { $client->macaddress } || '';
+    return 0 unless length $id;
+
+    if (eval { require Slim::Player::TranscodingHelper; 1 }) {
+        my $table  = eval { Slim::Player::TranscodingHelper::Conversions() } || {};
+        my $player = eval { $client->model } || '';
+        for my $profile (
+            "$source-flc-*-$id",
+            "$source-flc-$player-$id",
+            "$source-flc-*-*",
+        ) {
+            return 1 if $table->{$profile};
+        }
+    }
+
+    # SACD profiles may not have been registered yet on first playback; if
+    # SACDPlayer has an ffmpeg binary it can produce the intermediate FLAC.
+    my $ffmpeg = eval {
+        require Plugins::SACDPlayer::Transcoder;
+        Plugins::SACDPlayer::Transcoder->ffmpeg_bin;
+    };
+    return $ffmpeg ? 1 : 0;
+}
+
 sub target_available {
     my ($class, $client, $source, $target_key) = @_;
     return 0 unless $client && $source && $target_key;
+
+    my $resolved = Plugins::CodecSwitch::Config->resolve_target($client, $target_key)
+        or return 0;
+
+    if (Plugins::CodecSwitch::Config->is_dsd_source($source)
+        && Plugins::CodecSwitch::Config->sacd_enabled) {
+        return 0 unless $class->sacd_flc_available($client, $source);
+        return 1 if $resolved->{lms_format} eq 'flc';
+        return 1 if $class->post_plan($client, $target_key, 'flc');
+        return 0;
+    }
+
     return 1 if $class->plan($client, $source, $target_key, 0);
     return 1 if $class->plan($client, $source, $target_key, 1);
     return 0;

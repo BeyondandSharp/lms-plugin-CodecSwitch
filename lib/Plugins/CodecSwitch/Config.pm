@@ -130,6 +130,18 @@ sub source_by_key  { return $SOURCE_BY_KEY{ $_[1] } }
 sub target_by_key  { return $TARGET_BY_KEY{ $_[1] } }
 sub valid_value    { return $VALID_VALUE{ $_[1] } ? 1 : 0 }
 
+sub is_dsd_source {
+    my ($class, $source) = @_;
+    return $source && $source =~ /^(?:dff|dsf)$/ ? 1 : 0;
+}
+
+sub sacd_enabled {
+    return 0 unless eval { require Slim::Utils::PluginManager; 1 };
+    return eval {
+        Slim::Utils::PluginManager->isEnabled('Plugins::SACDPlayer::Plugin')
+    } ? 1 : 0;
+}
+
 sub is_remote {
     my ($class, $track) = @_;
     my $url = eval { $track->url } || '';

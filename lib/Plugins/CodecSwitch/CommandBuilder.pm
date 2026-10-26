@@ -143,6 +143,101 @@ sub native_plan {
     };
 }
 
+sub ffmpeg_pipe_plan {
+    my ($class, $args) = @_;
+    my $target = $args->{target} or return undef;
+    my $tools  = $args->{tools}  || {};
+    my $ffmpeg = $tools->{ffmpeg} or return undef;
+    my $input  = $args->{input_format} || '';
+
+    my %input_spec = (
+        flc => '-f flac -i -',
+        wav => '-f wav -i -',
+        dff => '-f iff -i -',
+    );
+    my $input_spec = $input_spec{$input} or return undef;
+
+    my $gate = $class->_gate_prefix($args->{gate});
+    my $command = $gate . $class->quote_bin($ffmpeg)
+        . ' -hide_banner -loglevel error '
+        . $input_spec
+        . ' -map 0:a:0 -vn -sn -dn'
+        . ' -c:a ' . $target->{ffmpeg_encoder};
+    $command .= ' ' . $target->{ffmpeg_args}
+        if defined $target->{ffmpeg_args} && length $target->{ffmpeg_args};
+    $command .= ' -f ' . $target->{ffmpeg_container} . ' -';
+
+    return {
+        command      => $command,
+        capabilities => {},
+        backend      => 'ffmpeg',
+        lms_format   => $args->{lms_format} || $target->{formats}[0],
+        target       => $target->{key},
+        input_format => $input,
+        post         => 1,
+    };
+}
+
+sub native_pipe_plan {
+    my ($class, $args) = @_;
+    my $target = $args->{target} or return undef;
+    my $tools  = $args->{tools}  || {};
+    my $sox    = $tools->{sox}    or return undef;
+    my $input  = $args->{input_format} || '';
+
+    my %input_spec = (
+        flc => '-t flac -',
+        wav => '-t wav -',
+    );
+    my $input_spec = $input_spec{$input} or return undef;
+    my $gate = $args->{gate};
+
+    my $sox_cmd = $class->quote_bin($sox) . ' -q ' . $input_spec;
+
+    my $command;
+    if ($target->{native} eq 'flc') {
+        my $flac = $tools->{flac} or return undef;
+        $command = $sox_cmd . ' -t wav - | ' . $class->_gate_prefix($gate)
+            . $class->quote_bin($flac) . ' -cs --totally-silent -';
+    }
+    elsif ($target->{native} eq 'mp3') {
+        my $lame = $tools->{lame} or return undef;
+        $command = $sox_cmd . ' -t wav - | ' . $class->_gate_prefix($gate)
+            . $class->quote_bin($lame) . ' --silent -q 2 - -';
+    }
+    elsif ($target->{native} eq 'ops') {
+        my $opusenc = $tools->{opusenc} or return undef;
+        $command = $sox_cmd . ' -t wav - | ' . $class->_gate_prefix($gate)
+            . $class->quote_bin($opusenc) . ' --quiet --bitrate 128 - -';
+    }
+    elsif ($target->{native} eq 'wav') {
+        $command = $class->_gate_prefix($gate)
+            . $class->quote_bin($sox) . ' -q ' . $input_spec . ' -t wav -';
+    }
+    elsif ($target->{native} eq 'aif') {
+        $command = $class->_gate_prefix($gate)
+            . $class->quote_bin($sox) . ' -q ' . $input_spec
+            . ' -t raw -e signed -b 16 -B -';
+    }
+    elsif ($target->{native} eq 'ogg') {
+        $command = $class->_gate_prefix($gate)
+            . $class->quote_bin($sox) . ' -q ' . $input_spec . ' -t ogg -C 5 -';
+    }
+    else {
+        return undef;
+    }
+
+    return {
+        command      => $command,
+        capabilities => {},
+        backend      => 'native',
+        lms_format   => $args->{lms_format} || $target->{formats}[0],
+        target       => $target->{key},
+        input_format => $input,
+        post         => 1,
+    };
+}
+
 sub direct_plan {
     my ($class, $args) = @_;
     return {

@@ -98,6 +98,28 @@ LMS 格式且编码器可用时，目标编码才会出现。若播放器没有�
 目标格式必须出现在播放器上报的 formats 中。例如播放器只上报 `pcm` 而没有
 `wav` 时，不会提供 WAV；若它上报 `flc`/`mp3`/`ogg`/`aif`，仍可选择这些目标。
 
+## SACDPlayer 集成（DST/DFF）
+
+启用 `SACDPlayer` 时，CodecSwitch 不再注册竞争的 `dff`/`dsf` 规则，而是把
+DSD 处理交给 SACDPlayer。若 DSD 源在 CodecSwitch 中配置了目标编码，链路为：
+
+```text
+DST/DFF/DSF -> SACDPlayer PCM/FLAC -> CodecSwitch 目标编码器 -> 播放器
+```
+
+说明：
+
+- CodecSwitch 向 SACDPlayer 请求 FLAC/PCM 输出（强制 `flc`），再把该流送进
+  目标编码器。播放器最终只会收到目标格式。
+- 这要求 SACDPlayer 的 FFmpeg 路径可用，因为它的 FLAC/PCM 输出依赖 FFmpeg。
+  第二段使用 CodecSwitch 配置的后端（原生工具或 FFmpeg）。
+- 目标为 `FLAC` 时直接使用 SACDPlayer 的 FLAC 输出，不再进行第二段编码。
+- DSD 源设置了目标编码时，SACDPlayer 自己的 Native/DoP 输出模式会被绕过，
+  改用 PCM/FLAC 中间流。要保留 Native/DoP，请把 CodecSwitch 中的
+  `dff`/`dsf` 设为 **直出**。
+- SACDPlayer 未启用时，CodecSwitch 会在 FFmpeg 可用时回退到自己的 DFF 解码。
+- SACDPlayer 没有可用的 FFmpeg 路径时，DSD 目标编码不会显示，只保留直出/跳过。
+
 ## 远程流
 
 本地文件可以使用完整的原生/FFmpeg 工具链。HTTP(S) 远程流的目标转换只通过
@@ -153,4 +175,7 @@ make bundle RELEASE_BASE=https://example.test/releases/download
 - AAC/ALAC 和特殊源编码需要 FFmpeg。
 - 并发限制依赖 `flock`，Windows 不可用。
 - 播放器不支持源编码时，直出不保证比特完美。
+- 同时启用 SACDPlayer 和 CodecSwitch 时，DSD 目标映射会使用 SACDPlayer 的
+  PCM/FLAC 输出再接 CodecSwitch 编码器；这些映射会绕过 SACDPlayer 的
+  Native/DoP 模式。
 - 插件不修改 LMS 核心，也不处理播放器端解码。
