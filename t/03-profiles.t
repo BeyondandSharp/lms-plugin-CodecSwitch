@@ -1,0 +1,68 @@
+use strict;
+use warnings;
+use Test::More;
+
+use lib 'lib', 't/lib';
+use CodecSwitchTest qw(reset_env fake_client set_formats);
+use Slim::Utils::Prefs;
+use Slim::Player::TranscodingHelper;
+use Slim::Player::Client;
+use Plugins::CodecSwitch::Profiles;
+use Plugins::CodecSwitch::Toolchain;
+
+my $prefs = preferences('plugin.codecswitch');
+reset_env();
+set_formats(qw(flc mp3 wav aac ops));
+
+my $ffmpeg = -x '/usr/bin/ffmpeg' ? '/usr/bin/ffmpeg'
+           : -x '/usr/local/bin/ffmpeg' ? '/usr/local/bin/ffmpeg' : undef;
+plan skip_all => 'ffmpeg not found' unless $ffmpeg;
+
+$prefs->set('ffmpeg', $ffmpeg);
+$prefs->set('sox', '/bin/true');
+$prefs->set('flac', '/bin/true');
+$prefs->set('lame', '/bin/true');
+$prefs->set('opusenc', '/bin/true');
+$prefs->set('max_jobs', 2);
+Plugins::CodecSwitch::Toolchain->reset_cache;
+
+my $client = fake_client();
+my $id = $client->id;
+
+is(Plugins::CodecSwitch::Profiles->setup($client) > 0, 1, 'profiles registered');
+
+my $t = \%Slim::Player::TranscodingHelper::commandTable;
+my $c = \%Slim::Player::TranscodingHelper::capabilities;
+
+ok(exists $t->{"flc-flc-*-$id"}, 'direct FLAC profile exists');
+is($t->{"flc-flc-*-$id"}, '-', 'direct FLAC profile is pass-through');
+ok(exists $t->{"mp3-flc-*-$id"}, 'local MP3 -> FLAC profile exists');
+ok(exists $t->{"mp3-flc-*-$id-1"}, 'remote MP3 -> FLAC profile exists');
+like($t->{"mp3-flc-*-$id-1"}, qr/-i \$URL\$/, 'remote profile uses URL');
+is($c->{"mp3-flc-*-$id"}{F}, 'noArgs', 'local profile has F');
+is($c->{"mp3-flc-*-$id-1"}{R}, 'noArgs', 'remote profile has R');
+ok(exists $t->{"mp3-aac-*-$id"}, 'MP3 -> AAC profile exists');
+like($t->{"mp3-aac-*-$id"}, qr/libf?f?mpeg|ffmpeg/, 'AAC profile uses ffmpeg');
+like($t->{"mp3-wav-*-$id"}, qr/\/bin\/true/, 'native WAV profile uses configured sox');
+like($t->{"mp3-flc-*-$id"}, qr/codecswitch-gate/, 'profiles use the worker gate when max_jobs > 0');
+
+my @before = sort keys %$t;
+Plugins::CodecSwitch::Profiles->setup($client);
+my @after = sort keys %$t;
+is_deeply(\@after, \@before, 're-running setup does not leave stale profiles');
+
+my $old_profile = "mp3-flc-*-$id";
+$t->{$old_profile} = 'OLD-COMMAND';
+$c->{$old_profile} = { F => 'noArgs' };
+Plugins::CodecSwitch::Profiles->setup($client);
+isnt($t->{$old_profile}, 'OLD-COMMAND', 'plugin overrides old exact-client profile');
+Plugins::CodecSwitch::Profiles->remove($client);
+is($t->{$old_profile}, 'OLD-COMMAND', 'old profile is restored on remove');
+ok(!exists $t->{"mp3-aac-*-$id"}, 'plugin profiles are removed');
+
+Slim::Player::Client->set_clients($client);
+is(Plugins::CodecSwitch::Profiles->setup_all() >= 1, 1, 'setup_all visits connected clients');
+Plugins::CodecSwitch::Profiles->remove_all;
+ok(!exists $t->{"mp3-aac-*-$id"}, 'remove_all clears profiles');
+
+done_testing;
