@@ -118,8 +118,19 @@ sub setup {
 sub is_managed_profile {
     my ($class, $profile) = @_;
     return 0 unless defined $profile;
+
+    my $table = eval { require Slim::Player::TranscodingHelper; 1 }
+        ? \%Slim::Player::TranscodingHelper::commandTable
+        : {};
+
     for my $clientid (keys %REGISTERED) {
-        return 1 if $REGISTERED{$clientid}{$profile};
+        my $entry = $REGISTERED{$clientid}{$profile} or next;
+        my $current = $table->{$profile};
+        # Only count the profile as managed while our command is still the
+        # active one.  A provider may overwrite the same client profile
+        # later; that profile must then be visible as an external provider.
+        return 1 if defined $current && defined $entry->{command}
+            && $current eq $entry->{command};
     }
     return 0;
 }

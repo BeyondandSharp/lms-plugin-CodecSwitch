@@ -46,4 +46,20 @@ delete $table->{'dsf-flc-*-*'};
 ok(!Plugins::CodecSwitch::Capabilities->has_dsd_provider($client, 'dff'),
     'provider disappears when profiles are removed');
 
+
+# A provider may overwrite a CodecSwitch-managed client profile.  Once the
+# command changes, it must be treated as external.
+Plugins::CodecSwitch::Profiles->remove_all;
+Plugins::CodecSwitch::Profiles->setup($client);
+my $managed_key = "dff-flc-*-$id";
+ok(Plugins::CodecSwitch::Profiles->is_managed_profile($managed_key),
+    'CodecSwitch-managed DSD profile is initially managed');
+$table->{$managed_key} = 'SACD-OVERWRITE $FILE$';
+ok(!Plugins::CodecSwitch::Profiles->is_managed_profile($managed_key),
+    'overwritten profile is no longer considered managed');
+ok(Plugins::CodecSwitch::Capabilities->has_dsd_provider($client, 'dff'),
+    'overwritten profile is detected as an external DSD provider');
+Plugins::CodecSwitch::Profiles->remove_all;
+delete $table->{$managed_key};
+
 done_testing;
