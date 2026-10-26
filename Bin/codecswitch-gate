@@ -1,0 +1,32 @@
+#!/bin/sh
+# CodecSwitch concurrency gate.
+#
+# usage: codecswitch-gate MAX LOCKDIR COMMAND [ARG...]
+#
+# Holds one of MAX flock slots while COMMAND runs.  When MAX is 0, flock is
+# unavailable, or LOCKDIR cannot be created we transparently exec COMMAND.
+max=$1
+dir=$2
+shift 2
+
+[ -n "$max" ] || exec "$@"
+case "$max" in
+    ''|*[!0-9]*) exec "$@" ;;
+esac
+[ "$max" -gt 0 ] 2>/dev/null || exec "$@"
+command -v flock >/dev/null 2>&1 || exec "$@"
+mkdir -p "$dir" 2>/dev/null || exec "$@"
+
+n=0
+while :; do
+    slot=$(( ($$ + n) % max + 1 ))
+    if exec 9>>"$dir/slot.$slot" 2>/dev/null && flock -n 9 2>/dev/null; then
+        exec "$@"
+    fi
+    exec 9>&- 2>/dev/null || true
+    n=$((n + 1))
+    if [ "$n" -ge 50 ]; then
+        sleep 0.02
+        n=0
+    fi
+done

@@ -1,0 +1,147 @@
+PLUGIN_CODECSWITCH
+	EN	CodecSwitch
+	ZH	CodecSwitch
+
+PLUGIN_CODECSWITCH_DESC
+	EN	Per-player source-to-target codec conversion, pass-through and track skipping
+	ZH	按播放器配置源编码到目标编码的转换、直出与曲目跳过
+
+PLUGIN_CODECSWITCH_SAVED
+	EN	Settings saved.
+	ZH	设置已保存。
+
+PLUGIN_CODECSWITCH_ADJUSTED
+	EN	Some values were adjusted:
+	ZH	部分值已被调整：
+
+PLUGIN_CODECSWITCH_TOOLS
+	EN	Transcoding tools
+	ZH	转码工具
+
+PLUGIN_CODECSWITCH_TOOLS_DESC
+	EN	Status of the external tools used for conversion. The LMS image already includes flac, sox and lame; ffmpeg is optional but enables AAC/ALAC and most source formats.
+	ZH	转换所用外部工具的状态。LMS 镜像已包含 flac、sox、lame；ffmpeg 可选，但启用 AAC/ALAC 和大多数源格式。
+
+PLUGIN_CODECSWITCH_MISSING
+	EN	not found
+	ZH	未找到
+
+PLUGIN_CODECSWITCH_WORKERS
+	EN	Transcoding workers
+	ZH	转码并发数
+
+PLUGIN_CODECSWITCH_WORKERS_DESC
+	EN	Limit how many encoder processes may run at the same time.
+	ZH	限制同时运行的编码进程数量。
+
+PLUGIN_CODECSWITCH_WORKERS_HELP
+	EN	0 = unlimited (LMS default). On Unix this is enforced with flock slots; on Windows the limit is unavailable.
+	ZH	0 = 不限制（LMS 默认）。Unix 下使用 flock 槽位强制执行；Windows 下不可用。
+
+PLUGIN_CODECSWITCH_PATHS
+	EN	Tool paths
+	ZH	工具路径
+
+PLUGIN_CODECSWITCH_PATHS_DESC
+	EN	Leave empty to use the LMS Bin directory or the system PATH.
+	ZH	留空则使用 LMS 的 Bin 目录或系统 PATH。
+
+PLUGIN_CODECSWITCH_FFMPEG
+	EN	ffmpeg executable
+	ZH	ffmpeg 可执行文件
+
+PLUGIN_CODECSWITCH_FLAC
+	EN	flac executable
+	ZH	flac 可执行文件
+
+PLUGIN_CODECSWITCH_LAME
+	EN	lame executable
+	ZH	lame 可执行文件
+
+PLUGIN_CODECSWITCH_SOX
+	EN	sox executable
+	ZH	sox 可执行文件
+
+PLUGIN_CODECSWITCH_OPUSENC
+	EN	opusenc executable
+	ZH	opusenc 可执行文件
+
+PLUGIN_CODECSWITCH_BACKENDS
+	EN	Encoder backends
+	ZH	编码后端
+
+PLUGIN_CODECSWITCH_BACKENDS_DESC
+	EN	Auto prefers the LMS helper tools and falls back to FFmpeg. Choose FFmpeg or Native to force one backend.
+	ZH	自动优先使用 LMS 自带工具，失败时回退到 FFmpeg。选择 FFmpeg 或原生可强制使用某一后端。
+
+PLUGIN_CODECSWITCH_TARGET
+	EN	Target format
+	ZH	目标格式
+
+PLUGIN_CODECSWITCH_BACKEND
+	EN	Backend
+	ZH	后端
+
+PLUGIN_CODECSWITCH_AUTO
+	EN	Auto
+	ZH	自动
+
+PLUGIN_CODECSWITCH_NATIVE
+	EN	Native helper
+	ZH	原生工具
+
+PLUGIN_CODECSWITCH_AAC_ALAC_NOTE
+	EN	AAC and ALAC always require FFmpeg.
+	ZH	AAC 与 ALAC 始终需要 FFmpeg。
+
+PLUGIN_CODECSWITCH_PLAYER
+	EN	Codec conversion
+	ZH	编码转换
+
+PLUGIN_CODECSWITCH_PLAYER_DESC
+	EN	Choose what this player should receive for each source codec.
+	ZH	为每种源编码选择此播放器应接收的内容。
+
+PLUGIN_CODECSWITCH_PLAYER_FORMATS
+	EN	Player formats
+	ZH	播放器格式
+
+PLUGIN_CODECSWITCH_NO_FORMATS
+	EN	This player did not report any supported formats. Only pass-through and skip are available.
+	ZH	此播放器未上报支持的格式，仅可使用直出和跳过。
+
+PLUGIN_CODECSWITCH_SOURCE
+	EN	Source codec
+	ZH	源编码
+
+PLUGIN_CODECSWITCH_ACTION
+	EN	Action
+	ZH	动作
+
+PLUGIN_CODECSWITCH_DIRECT
+	EN	Pass-through (no plugin conversion)
+	ZH	直出（插件不转换）
+
+PLUGIN_CODECSWITCH_SKIP
+	EN	Skip track (remove from current queue)
+	ZH	跳过（从当前队列移除）
+
+PLUGIN_CODECSWITCH_PLAYER_HELP
+	EN	Pass-through lets LMS play the original stream when the player supports it; otherwise LMS's normal fallback applies. Skip removes the track from the current queue when it is reached.
+	ZH	直出时若播放器支持源编码则由 LMS 直接播放，否则仍走 LMS 原有回退逻辑。跳过会在播放到该曲目时把它从当前队列移除。
+
+PLUGIN_CODECSWITCH_WARN_MAX
+	EN	Invalid worker count; reset to 0.
+	ZH	并发数无效，已重置为 0。
+
+PLUGIN_CODECSWITCH_WARN_TOOL
+	EN	A configured tool path is not executable.
+	ZH	配置的工具路径不可执行。
+
+PLUGIN_CODECSWITCH_WARN_MAPPING
+	EN	An unavailable target was reset to pass-through.
+	ZH	不可用的目标已重置为直出。
+
+PLUGIN_CODECSWITCH_WARN_BACKEND
+	EN	Invalid encoder backend; reset to Auto.
+	ZH	编码后端无效，已重置为自动。

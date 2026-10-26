@@ -1,0 +1,75 @@
+[% PROCESS settings/header.html %]
+
+[% IF saved %]
+  <div class="prefDesc"><b>[% "PLUGIN_CODECSWITCH_SAVED" | string %]</b></div>
+[% END %]
+[% IF warnings.size %]
+  <div class="prefDesc red">
+    [% "PLUGIN_CODECSWITCH_ADJUSTED" | string %]
+    [% FOREACH w IN warnings %]<div>[% w.token | string %][% IF w.detail %]: [% w.detail | html %][% END %]</div>[% END %]
+  </div>
+[% END %]
+
+[% WRAPPER settingSection %]
+  [% WRAPPER settingGroup title="PLUGIN_CODECSWITCH_TOOLS" desc="PLUGIN_CODECSWITCH_TOOLS_DESC" %]
+    <table class="prefTable">
+      [% FOREACH t IN tools %]
+        <tr>
+          <td>[% t.label | html %]</td>
+          <td>
+            [% IF t.ok %]
+              [% t.path | html %]
+              [% IF t.version %] <span class="prefDesc">([% t.version | html %])</span>[% END %]
+              [% IF t.detail %] <span class="prefDesc">[% t.detail | html %]</span>[% END %]
+            [% ELSE %]
+              <span class="red">[% "PLUGIN_CODECSWITCH_MISSING" | string %]</span>
+              [% IF t.detail %] <span class="prefDesc">[% t.detail | html %]</span>[% END %]
+            [% END %]
+          </td>
+        </tr>
+      [% END %]
+    </table>
+  [% END %]
+
+  [% WRAPPER settingGroup title="PLUGIN_CODECSWITCH_WORKERS" desc="PLUGIN_CODECSWITCH_WORKERS_DESC" %]
+    <input type="text" class="stdedit" name="pref_max_jobs" value="[% prefs.max_jobs | html %]" size="5" />
+    <div class="prefDesc">[% "PLUGIN_CODECSWITCH_WORKERS_HELP" | string %]</div>
+  [% END %]
+
+  [% WRAPPER settingGroup title="PLUGIN_CODECSWITCH_PATHS" desc="PLUGIN_CODECSWITCH_PATHS_DESC" %]
+    <div class="prefDesc">[% "PLUGIN_CODECSWITCH_FFMPEG" | string %]</div>
+    <input type="text" class="stdedit" name="pref_ffmpeg" value="[% prefs.ffmpeg | html %]" size="60" />
+    <div class="prefDesc">[% "PLUGIN_CODECSWITCH_FLAC" | string %]</div>
+    <input type="text" class="stdedit" name="pref_flac" value="[% prefs.flac | html %]" size="60" />
+    <div class="prefDesc">[% "PLUGIN_CODECSWITCH_LAME" | string %]</div>
+    <input type="text" class="stdedit" name="pref_lame" value="[% prefs.lame | html %]" size="60" />
+    <div class="prefDesc">[% "PLUGIN_CODECSWITCH_SOX" | string %]</div>
+    <input type="text" class="stdedit" name="pref_sox" value="[% prefs.sox | html %]" size="60" />
+    <div class="prefDesc">[% "PLUGIN_CODECSWITCH_OPUSENC" | string %]</div>
+    <input type="text" class="stdedit" name="pref_opusenc" value="[% prefs.opusenc | html %]" size="60" />
+  [% END %]
+
+  [% WRAPPER settingGroup title="PLUGIN_CODECSWITCH_BACKENDS" desc="PLUGIN_CODECSWITCH_BACKENDS_DESC" %]
+    <table class="prefTable">
+      <tr>
+        <th>[% "PLUGIN_CODECSWITCH_TARGET" | string %]</th>
+        <th>[% "PLUGIN_CODECSWITCH_BACKEND" | string %]</th>
+      </tr>
+      [% FOREACH b IN backends %]
+        <tr>
+          <td>[% b.label | html %]</td>
+          <td>
+            <select class="stdedit" name="pref_backend_[% b.key | html %]">
+              <option value="auto"[% IF b.value == 'auto' %] selected[% END %]>[% "PLUGIN_CODECSWITCH_AUTO" | string %]</option>
+              <option value="ffmpeg"[% IF b.value == 'ffmpeg' %] selected[% END %]>FFmpeg</option>
+              <option value="native"[% IF b.value == 'native' %] selected[% END %]>[% "PLUGIN_CODECSWITCH_NATIVE" | string %]</option>
+            </select>
+          </td>
+        </tr>
+      [% END %]
+    </table>
+    <div class="prefDesc">[% "PLUGIN_CODECSWITCH_AAC_ALAC_NOTE" | string %]</div>
+  [% END %]
+[% END %]
+
+[% PROCESS settings/footer.html %]

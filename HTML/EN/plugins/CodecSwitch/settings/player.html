@@ -1,0 +1,47 @@
+[% PROCESS settings/header.html %]
+
+[% IF saved %]
+  <div class="prefDesc"><b>[% "PLUGIN_CODECSWITCH_SAVED" | string %]</b></div>
+[% END %]
+[% IF warnings.size %]
+  <div class="prefDesc red">
+    [% "PLUGIN_CODECSWITCH_ADJUSTED" | string %]
+    [% FOREACH w IN warnings %]<div>[% w.token | string %][% IF w.detail %]: [% w.detail | html %][% END %]</div>[% END %]
+  </div>
+[% END %]
+
+[% WRAPPER settingSection %]
+  [% WRAPPER settingGroup title="PLUGIN_CODECSWITCH_PLAYER" desc="PLUGIN_CODECSWITCH_PLAYER_DESC" %]
+    <div class="prefDesc">
+      [% "PLUGIN_CODECSWITCH_PLAYER_FORMATS" | string %]: [% formats || "unknown" | html %]
+    </div>
+
+    [% IF rows.size == 0 %]
+      <div class="prefDesc">[% "PLUGIN_CODECSWITCH_NO_FORMATS" | string %]</div>
+    [% ELSE %]
+      <table class="prefTable">
+        <tr>
+          <th>[% "PLUGIN_CODECSWITCH_SOURCE" | string %]</th>
+          <th>[% "PLUGIN_CODECSWITCH_ACTION" | string %]</th>
+        </tr>
+        [% FOREACH row IN rows %]
+          <tr>
+            <td>[% row.label | html %]</td>
+            <td>
+              <select class="stdedit" name="pref_map_[% row.key | html %]">
+                [% FOREACH opt IN row.options %]
+                  <option value="[% opt.value | html %]"[% IF opt.value == row.value %] selected[% END %]>
+                    [% IF opt.string %][% opt.string | string %][% ELSE %][% opt.label | html %][% END %]
+                  </option>
+                [% END %]
+              </select>
+            </td>
+          </tr>
+        [% END %]
+      </table>
+      <div class="prefDesc">[% "PLUGIN_CODECSWITCH_PLAYER_HELP" | string %]</div>
+    [% END %]
+  [% END %]
+[% END %]
+
+[% PROCESS settings/footer.html %]
