@@ -30,12 +30,10 @@ is(Plugins::CodecSwitch::Settings->page, 'plugins/CodecSwitch/settings/basic.htm
 
 my $params = {
     saveSettings   => 1,
-    pref_max_jobs  => '999',
     pref_ffmpeg    => '/nope/ffmpeg',
     pref_backend_flc => 'bogus',
 };
 my $result = Plugins::CodecSwitch::Settings->handler(undef, $params);
-is($prefs->get('max_jobs'), 0, 'invalid worker count clamped to 0');
 is($prefs->get('backend_flc'), 'auto', 'invalid backend reset to auto');
 ok(@{ $result->{warnings} }, 'server warnings recorded');
 ok($result->{saved}, 'server saved flag');
@@ -45,13 +43,13 @@ ok(ref $result->{backends} eq 'ARRAY' && @{ $result->{backends} }, 'backend rows
 my $client = fake_client(formats => [qw(flc mp3 wav aac)]);
 my $playerParams = {
     saveSettings => 1,
-    pref_map_flc => 'skip',
+    pref_map_flc => 'mp3',
     pref_map_mp3 => 'aac',
     pref_map_wav => 'bogus',
 };
 my $playerResult = Plugins::CodecSwitch::PlayerSettings->handler($client, $playerParams);
 my $mapping = Plugins::CodecSwitch::Config->mapping_for($client);
-is($mapping->{flc}, 'skip', 'player skip mapping saved');
+is($mapping->{flc}, 'mp3', 'player target mapping saved');
 is($mapping->{mp3}, 'aac', 'player target mapping saved');
 is($mapping->{wav}, 'direct', 'invalid player target reset to direct');
 ok($playerResult->{saved}, 'player saved flag');
@@ -59,7 +57,7 @@ ok(@{ $playerResult->{warnings} }, 'player warnings recorded');
 ok(ref $playerResult->{rows} eq 'ARRAY' && @{ $playerResult->{rows} }, 'player rows are populated');
 
 my ($flcRow) = grep { $_->{key} eq 'flc' } @{ $playerResult->{rows} };
-is($flcRow->{value}, 'skip', 'rendered row reflects saved value');
+is($flcRow->{value}, 'mp3', 'rendered row reflects saved value');
 ok(grep({ $_->{value} eq 'aac' } @{ $flcRow->{options} }), 'AAC target offered when available');
 
 done_testing;

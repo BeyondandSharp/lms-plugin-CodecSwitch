@@ -35,12 +35,6 @@ sub initPlugin {
             );
             1;
         } or $log->error("unable to subscribe to client events: $@");
-
-        eval {
-            require Plugins::CodecSwitch::Skip;
-            Plugins::CodecSwitch::Skip->install;
-            1;
-        } or $log->error("unable to install skip handler: $@");
     }
 
     return 1;
@@ -65,7 +59,6 @@ sub shutdownPlugin {
     my ($class) = @_;
 
     eval { require Plugins::CodecSwitch::Hooks; Plugins::CodecSwitch::Hooks->uninstall; 1 };
-    eval { require Plugins::CodecSwitch::Skip; Plugins::CodecSwitch::Skip->uninstall; 1 };
     eval { require Plugins::CodecSwitch::Profiles; Plugins::CodecSwitch::Profiles->remove_all; 1 };
 
     return 1;

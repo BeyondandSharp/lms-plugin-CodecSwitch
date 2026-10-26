@@ -1,0 +1,44 @@
+--- a/Slim/Web/Settings/Player/Audio.pm
++++ b/Slim/Web/Settings/Player/Audio.pm
+@@ -124,7 +124,12 @@
+ 	my ($class, $paramRef, $client) = @_;
+ 
+ 	# Load any option lists for dynamic options.
+-	$paramRef->{'lamefound'}  = Slim::Utils::Misc::findbin('lame');
++	$paramRef->{'lamefound'}    = Slim::Utils::Misc::findbin('lame');
++	$paramRef->{'ffmpegfound'}  = Slim::Utils::Misc::findbin('ffmpeg');
++	$paramRef->{'opusencfound'} = Slim::Utils::Misc::findbin('opusenc');
++	$paramRef->{'bitratefound'} = $paramRef->{'lamefound'}
++		|| $paramRef->{'ffmpegfound'}
++		|| $paramRef->{'opusencfound'};
+ 
+ 	my @formats = $client->formats();
+ 
+--- a/HTML/EN/settings/player/audio.html
++++ b/HTML/EN/settings/player/audio.html
+@@ -345,8 +345,8 @@
+ 			[% desc = "SETUP_MP3BITRATE_DESC" | string %]
+ 		[% END %]
+ 
+-		[% WRAPPER settingGroup title="SETUP_MAXBITRATE" %]
+-				<select class="stdedit" name="pref_maxBitrate" id="pref_maxBitrate" [% !lamefound && "disabled" %]>
++		[% WRAPPER settingGroup title="SETUP_MAXBITRATE" desc="PLUGIN_CODECSWITCH_BITRATE_DESC" %]
++				<select class="stdedit" name="pref_maxBitrate" id="pref_maxBitrate" [% !bitratefound && "disabled" %]>
+ 
+ 				[% IF allowNoLimit %]
+ 					<option [% IF prefs.pref_maxBitrate == '0' %]selected [% END %]value="0">[% "NO_LIMIT" | string %]</option>
+@@ -357,10 +357,11 @@
+ 
+ 				</select>
+ 				<br/>
+-				[% IF lamefound %]
+-					[% "SETUP_LAME_FOUND" | string %]
++				[% IF bitratefound %]
++					<div class="prefDesc">[% "PLUGIN_CODECSWITCH_BITRATE_CODECS" | string %]</div>
++					<div class="prefDesc">[% "PLUGIN_CODECSWITCH_BITRATE_ENCODERS" | string %]</div>
+ 				[% ELSE %]
+-					[% "SETUP_LAME_NOT_FOUND" | string %]
++					<div class="prefDesc red">[% "PLUGIN_CODECSWITCH_BITRATE_NO_ENCODER" | string %]</div>
+ 				[% END %]
+ 		[% END %]
+ 

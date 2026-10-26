@@ -22,15 +22,6 @@ sub quote_bin {
     return '"' . $path . '"';
 }
 
-sub _gate_prefix {
-    my ($class, $gate) = @_;
-    return '' unless $gate && $gate->{bin} && $gate->{max} && $gate->{max} > 0;
-    return $class->quote_bin($gate->{bin})
-        . ' ' . int($gate->{max})
-        . ' ' . $class->quote_bin($gate->{dir})
-        . ' ';
-}
-
 sub _resample_filter {
     my ($class, $resampler) = @_;
     $resampler = 'swr' unless defined $resampler && $resampler =~ /^(?:swr|soxr)$/;
@@ -48,7 +39,6 @@ sub ffmpeg_plan {
 
     my $input = $remote ? '$URL$' : '$FILE$';
     my $filter = $class->_resample_filter($args->{resampler});
-    my $gate   = $class->_gate_prefix($args->{gate});
 
     my $caps = {
         ($remote ? (R => 'noArgs') : (F => 'noArgs')),
@@ -57,13 +47,22 @@ sub ffmpeg_plan {
         D => 'RESAMPLE=-af ' . $filter,
     };
 
-    my $command = $gate . $class->quote_bin($ffmpeg)
+    my $caps_b = $target->{bitrate} ? { B => 'BITRATE=-b:a %Bk' } : {};
+    $caps = { %$caps, %$caps_b };
+
+    my $command = $class->quote_bin($ffmpeg)
         . ' -nostdin -hide_banner -loglevel error'
         . ' $START$ -i ' . $input . ' $END$'
         . ' -map 0:a:0 -vn -sn -dn $RESAMPLE$'
         . ' -c:a ' . $target->{ffmpeg_encoder};
     $command .= ' ' . $target->{ffmpeg_args}
         if defined $target->{ffmpeg_args} && length $target->{ffmpeg_args};
+    if ($args->{bitrate} && $target->{bitrate}) {
+        $command .= ' -b:a ' . int($args->{bitrate}) . 'k';
+    }
+    elsif ($target->{bitrate}) {
+        $command .= ' $BITRATE$';
+    }
     $command .= ' -f ' . $target->{ffmpeg_container} . ' -';
 
     return {
@@ -89,11 +88,11 @@ sub native_plan {
     return undef unless $target->{native};
     return undef unless $args->{lms_format};
 
-    my $gate = $args->{gate};
     my $caps = {
         F => 'noArgs',
         D => 'RESAMPLE=rate -v %d',
     };
+    $caps->{B} = $target->{native_bitrate} if $target->{native_bitrate};
 
     my $sox_cmd = $class->quote_bin($sox)
         . ' -q $FILE$ -t wav - $RESAMPLE$';
@@ -101,32 +100,29 @@ sub native_plan {
     my $command;
     if ($target->{native} eq 'flc') {
         my $flac = $tools->{flac} or return undef;
-        $command = $sox_cmd . ' | ' . $class->_gate_prefix($gate)
+        $command = $sox_cmd . ' | '
             . $class->quote_bin($flac) . ' -cs --totally-silent -';
     }
     elsif ($target->{native} eq 'mp3') {
         my $lame = $tools->{lame} or return undef;
-        $command = $sox_cmd . ' | ' . $class->_gate_prefix($gate)
-            . $class->quote_bin($lame) . ' --silent -q 2 - -';
+        $command = $sox_cmd . ' | '
+            . $class->quote_bin($lame) . ' --silent --abr 192 $BITRATE$ - -';
     }
     elsif ($target->{native} eq 'ops') {
         my $opusenc = $tools->{opusenc} or return undef;
-        $command = $sox_cmd . ' | ' . $class->_gate_prefix($gate)
-            . $class->quote_bin($opusenc) . ' --quiet --bitrate 128 - -';
+        $command = $sox_cmd . ' | '
+            . $class->quote_bin($opusenc) . ' --quiet --bitrate 128 $BITRATE$ - -';
     }
     elsif ($target->{native} eq 'wav') {
-        $command = $class->_gate_prefix($gate)
-            . $class->quote_bin($sox) . ' -q $FILE$ -t wav - $RESAMPLE$';
+        $command = $class->quote_bin($sox) . ' -q $FILE$ -t wav - $RESAMPLE$';
     }
     elsif ($target->{native} eq 'aif') {
         # LMS's "aif" stream format is raw big-endian PCM when it comes from
         # a transcoder (core flc->aif does the same), not an AIFF container.
-        $command = $class->_gate_prefix($gate)
-            . $class->quote_bin($sox) . ' -q $FILE$ -t raw -e signed -b 16 -B - $RESAMPLE$';
+        $command = $class->quote_bin($sox) . ' -q $FILE$ -t raw -e signed -b 16 -B - $RESAMPLE$';
     }
     elsif ($target->{native} eq 'ogg') {
-        $command = $class->_gate_prefix($gate)
-            . $class->quote_bin($sox) . ' -q $FILE$ -t ogg -C 5 - $RESAMPLE$';
+        $command = $class->quote_bin($sox) . ' -q $FILE$ -t ogg -C 5 - $RESAMPLE$';
     }
     else {
         return undef;
@@ -154,17 +150,19 @@ sub ffmpeg_pipe_plan {
         flc => '-f flac -i -',
         wav => '-f wav -i -',
         dff => '-f iff -i -',
+        pcm => '-f ' . ($args->{input_sample_fmt} || 's16le') . ' -ar ' . ($args->{input_rate} || 44100) . ' -ac ' . ($args->{input_channels} || 2) . ' -i -',
     );
     my $input_spec = $input_spec{$input} or return undef;
 
-    my $gate = $class->_gate_prefix($args->{gate});
-    my $command = $gate . $class->quote_bin($ffmpeg)
+    my $command = $class->quote_bin($ffmpeg)
         . ' -hide_banner -loglevel error '
         . $input_spec
         . ' -map 0:a:0 -vn -sn -dn'
         . ' -c:a ' . $target->{ffmpeg_encoder};
     $command .= ' ' . $target->{ffmpeg_args}
         if defined $target->{ffmpeg_args} && length $target->{ffmpeg_args};
+    $command .= ' -b:a ' . int($args->{bitrate}) . 'k'
+        if $args->{bitrate} && $target->{bitrate};
     $command .= ' -f ' . $target->{ffmpeg_container} . ' -';
 
     return {
@@ -188,40 +186,37 @@ sub native_pipe_plan {
     my %input_spec = (
         flc => '-t flac -',
         wav => '-t wav -',
+        pcm => '-t raw -e signed -b ' . (($args->{input_sample_fmt} || '') =~ /^s24/ ? 24 : 16) . ' -r ' . ($args->{input_rate} || 44100) . ' -c ' . ($args->{input_channels} || 2) . ' -',
     );
     my $input_spec = $input_spec{$input} or return undef;
-    my $gate = $args->{gate};
 
     my $sox_cmd = $class->quote_bin($sox) . ' -q ' . $input_spec;
 
     my $command;
     if ($target->{native} eq 'flc') {
         my $flac = $tools->{flac} or return undef;
-        $command = $sox_cmd . ' -t wav - | ' . $class->_gate_prefix($gate)
+        $command = $sox_cmd . ' -t wav - | '
             . $class->quote_bin($flac) . ' -cs --totally-silent -';
     }
     elsif ($target->{native} eq 'mp3') {
         my $lame = $tools->{lame} or return undef;
-        $command = $sox_cmd . ' -t wav - | ' . $class->_gate_prefix($gate)
-            . $class->quote_bin($lame) . ' --silent -q 2 - -';
+        $command = $sox_cmd . ' -t wav - | '
+            . $class->quote_bin($lame) . ' --silent --abr ' . ($args->{bitrate} || 192) . ' - -';
     }
     elsif ($target->{native} eq 'ops') {
         my $opusenc = $tools->{opusenc} or return undef;
-        $command = $sox_cmd . ' -t wav - | ' . $class->_gate_prefix($gate)
-            . $class->quote_bin($opusenc) . ' --quiet --bitrate 128 - -';
+        $command = $sox_cmd . ' -t wav - | '
+            . $class->quote_bin($opusenc) . ' --quiet --bitrate ' . ($args->{bitrate} || 128) . ' - -';
     }
     elsif ($target->{native} eq 'wav') {
-        $command = $class->_gate_prefix($gate)
-            . $class->quote_bin($sox) . ' -q ' . $input_spec . ' -t wav -';
+        $command = $class->quote_bin($sox) . ' -q ' . $input_spec . ' -t wav -';
     }
     elsif ($target->{native} eq 'aif') {
-        $command = $class->_gate_prefix($gate)
-            . $class->quote_bin($sox) . ' -q ' . $input_spec
+        $command = $class->quote_bin($sox) . ' -q ' . $input_spec
             . ' -t raw -e signed -b 16 -B -';
     }
     elsif ($target->{native} eq 'ogg') {
-        $command = $class->_gate_prefix($gate)
-            . $class->quote_bin($sox) . ' -q ' . $input_spec . ' -t ogg -C 5 -';
+        $command = $class->quote_bin($sox) . ' -q ' . $input_spec . ' -t ogg -C 5 -';
     }
     else {
         return undef;

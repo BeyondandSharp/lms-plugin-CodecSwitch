@@ -8,7 +8,6 @@ use Slim::Utils::Prefs;
 my $prefs = preferences('plugin.codecswitch');
 
 our $DIRECT = 'direct';
-our $SKIP   = 'skip';
 
 # Source formats shown in the player settings page.  Keys are LMS content
 # types, not file extensions.
@@ -71,9 +70,11 @@ our @TARGETS = (
         label            => 'MP3',
         formats          => ['mp3'],
         ffmpeg_encoder   => 'libmp3lame',
-        ffmpeg_args      => '-q:a 2',
+        ffmpeg_args      => '-b:a 192k',
         ffmpeg_container => 'mp3',
         native           => 'mp3',
+        bitrate          => 1,
+        native_bitrate   => '--abr %B',
     },
     {
         key              => 'aac',
@@ -83,15 +84,17 @@ our @TARGETS = (
         ffmpeg_args      => '-b:a 256k',
         ffmpeg_container => 'adts',
         native           => undef,
+        bitrate          => 1,
     },
     {
         key              => 'ogg',
         label            => 'Ogg Vorbis',
         formats          => ['ogg'],
         ffmpeg_encoder   => 'libvorbis',
-        ffmpeg_args      => '-q:a 5',
+        ffmpeg_args      => '-b:a 192k',
         ffmpeg_container => 'ogg',
         native           => 'ogg',
+        bitrate          => 1,
     },
     {
         key              => 'ops',
@@ -101,6 +104,8 @@ our @TARGETS = (
         ffmpeg_args      => '-b:a 128k',
         ffmpeg_container => 'ogg',
         native           => 'ops',
+        bitrate          => 1,
+        native_bitrate   => '--bitrate %B',
     },
     {
         key              => 'alc',
@@ -118,7 +123,6 @@ my %SOURCE_BY_KEY = map { $_->{key} => $_ } @SOURCES;
 my %TARGET_BY_KEY = map { $_->{key} => $_ } @TARGETS;
 my %VALID_VALUE   = (
     $DIRECT => 1,
-    $SKIP   => 1,
     map({ $_->{key} => 1 } @TARGETS),
 );
 
@@ -250,9 +254,6 @@ sub decision {
         unless $source && $client;
 
     my $value = $class->mapping_value($client, $source);
-    if ($value eq $SKIP) {
-        return { action => $SKIP, source => $source };
-    }
     if ($value ne $DIRECT && $TARGET_BY_KEY{$value}) {
         return {
             action => 'target',
@@ -273,7 +274,7 @@ sub normalize_mapping {
     for my $source (keys %SOURCE_BY_KEY) {
         my $value = $raw->{$source};
         $value = $DIRECT unless defined $value && $VALID_VALUE{$value};
-        if ($value ne $DIRECT && $value ne $SKIP) {
+        if ($value ne $DIRECT) {
             $value = $DIRECT unless $allowed_targets->{$value};
         }
         $mapping{$source} = $value;

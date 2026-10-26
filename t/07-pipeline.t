@@ -36,6 +36,7 @@ sub render {
     $command =~ s/\$START\$//g;
     $command =~ s/\$END\$//g;
     $command =~ s/\$RESAMPLE\$//g;
+    $command =~ s/\$BITRATE\$//g;
     return $command;
 }
 

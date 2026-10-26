@@ -5,7 +5,9 @@ use warnings;
 
 use Slim::Utils::Log;
 
+use Plugins::CodecSwitch::Capabilities;
 use Plugins::CodecSwitch::Config;
+use Plugins::CodecSwitch::Orchestrator;
 use Plugins::CodecSwitch::Toolchain;
 
 my $log = logger('plugin.codecswitch');
@@ -60,18 +62,22 @@ sub _client_name {
 }
 
 sub _chain_after_sacd {
-    my ($class, $args, $client, $decision) = @_;
+    my ($class, $args, $client, $decision, $want) = @_;
 
-    # SACDPlayer's PCM/FLAC output is the intermediate stream.  Force the
-    # output format even when the player itself does not support FLAC; the
-    # player only ever sees the final target format.
+    my $target = Plugins::CodecSwitch::Config->resolve_target(
+        $client, $decision->{target}
+    ) or return undef;
+
+    # Unknown/legacy direct DSD profile wins (priority 0).
+    return undef if Plugins::CodecSwitch::Capabilities->unknown_dsd_direct(
+        $client, $decision->{source}, $target->{lms_format}, 0
+    );
+
+    # SACDPlayer's PCM/FLAC output is the intermediate stream.
     my @base_args = @$args;
     $base_args[5] = 'flc';
     my $base = $orig_get_convert->(@base_args);
 
-    # The client event should already have registered SACD profiles.  If it
-    # has not (for example a very early first playback), ask SACDPlayer once
-    # to set them up and retry.
     if (!$base || ref $base ne 'HASH') {
         my $ok = eval {
             require Plugins::SACDPlayer::Transcoder;
@@ -83,39 +89,35 @@ sub _chain_after_sacd {
 
     return undef unless $base && ref $base eq 'HASH';
 
-    my $base_format = $base->{streamformat} || '';
-    my $base_command = $base->{command} || '';
-    return undef unless $base_format eq 'flc' && $base_command ne '-';
-
-    my $target = Plugins::CodecSwitch::Config->resolve_target(
-        $client, $decision->{target}
-    ) or return undef;
-
-    return $base if $target->{lms_format} eq 'flc';
-
-    my $post = Plugins::CodecSwitch::Toolchain->post_plan(
-        $client, $decision->{target}, 'flc'
+    my $want_b = Plugins::CodecSwitch::Orchestrator->wants_bitrate($want);
+    my $rule = Plugins::CodecSwitch::Orchestrator->sacd_rule(
+        $client, $decision->{source}, $decision->{target}, $base, $want_b
     );
-    unless ($post) {
-        $log->warn(
-            "SACD produced FLAC but no CodecSwitch post-encoder is available for "
-            . $decision->{target}
-        );
-        return undef;
+
+    if ($rule && $rule->{result}) {
+        return $rule->{result};
     }
 
+    if ($rule && $rule->{stopped}) {
+        return $rule->{base};
+    }
+
+    # Fallback to the old FLAC-only chain for older SACD plugins.
+    return undef unless ($base->{streamformat} || '') eq 'flc';
+
+    my $post = Plugins::CodecSwitch::Toolchain->post_plan(
+        $client, $decision->{target}, 'flc',
+        bitrate => $want_b
+            ? Plugins::CodecSwitch::Orchestrator->max_rate($client) : 0,
+    );
+    return undef unless $post;
+
     my %out = %$base;
-    $out{command}      = '(' . $base_command . ') | ' . $post->{command};
+    $out{command}      = '(' . $base->{command} . ') | ' . $post->{command};
     $out{streamformat} = $target->{lms_format};
     $out{post_backend} = $post->{backend};
     $out{post_format}  = $target->{lms_format};
-
-    $log->debug(
-        "chaining SACD FLAC -> " . $target->{lms_format}
-        . " via " . ($post->{backend} || 'unknown')
-        . " for " . _client_name($client)
-        . " (base profile " . ($base->{profile} || '?') . ')'
-    );
+    $out{codecswitch_chain} = 1;
 
     return \%out;
 }
@@ -145,7 +147,7 @@ sub _getConvertCommand2 {
     return $orig_get_convert->(@args) unless $decision->{action} eq 'target';
 
     if ($sacd_dsd) {
-        my $chained = __PACKAGE__->_chain_after_sacd(\@args, $client, $decision);
+        my $chained = __PACKAGE__->_chain_after_sacd(\@args, $client, $decision, $want);
         return $chained if $chained;
         return $orig_get_convert->(@args);
     }

@@ -26,9 +26,10 @@ MODULES := \
 	lib/Plugins/CodecSwitch/CommandBuilder.pm \
 	lib/Plugins/CodecSwitch/Profiles.pm \
 	lib/Plugins/CodecSwitch/Hooks.pm \
-	lib/Plugins/CodecSwitch/Skip.pm
+	lib/Plugins/CodecSwitch/Capabilities.pm \
+	lib/Plugins/CodecSwitch/Orchestrator.pm
 
-.PHONY: all test render-version repo sync-version bump dist bundle install verify-dist smoke clean
+.PHONY: all test render-version repo sync-version bump dist bundle install verify-dist smoke lms-patch-check lms-patch lms-patched-image clean
 
 all: test
 
@@ -57,10 +58,10 @@ dist: render-version
 	@rm -rf "$(DIST)"
 	@mkdir -p "$(DIST)"
 	@cp -p "$(BUILD)/install.xml" strings.txt README.md README.zh-CN.md LICENSE "$(DIST)/"
-	@cp -Rp lib HTML Bin "$(DIST)/"
+	@cp -Rp patches "$(DIST)/"
+	@cp -Rp lib HTML "$(DIST)/"
 	@find "$(DIST)" -type d -exec chmod 755 {} +
 	@find "$(DIST)" -type f -exec chmod 644 {} +
-	@chmod 755 "$(DIST)/Bin/codecswitch-gate"
 	@echo "Release folder: $(DIST)"
 
 bundle: dist
@@ -74,12 +75,24 @@ verify-dist:
 	@grep -q "<version>$(VERSION)</version>" "$(DIST)/install.xml" || (echo "install.xml version mismatch" >&2; exit 1)
 	@test -f "$(DIST)/lib/Plugins/CodecSwitch/Plugin.pm" || (echo "missing plugin module" >&2; exit 1)
 	@test -f "$(DIST)/HTML/EN/plugins/CodecSwitch/settings/basic.html" || (echo "missing settings page" >&2; exit 1)
-	@test -x "$(DIST)/Bin/codecswitch-gate" || (echo "gate is not executable" >&2; exit 1)
+	@test -f "$(DIST)/patches/lms/bitrate-codecs.patch" || (echo "missing LMS UI patch" >&2; exit 1)
 	@for m in $(MODULES); do \
 		test -f "$(DIST)/$$m" || (echo "missing $$m" >&2; exit 1); \
 		$(PERL) -I"$(DIST)/lib" -It/lib -c "$(DIST)/$$m" || exit 1; \
 	done
 	@echo "dist verified"
+
+lms-patch-check:
+	@test -n "$(LMS_ROOT)" || (echo "usage: make lms-patch-check LMS_ROOT=/path/to/lms" >&2; exit 1)
+	@sh tools/apply-lms-patch.sh "$(LMS_ROOT)" --check
+
+lms-patch:
+	@test -n "$(LMS_ROOT)" || (echo "usage: make lms-patch LMS_ROOT=/path/to/lms" >&2; exit 1)
+	@sh tools/apply-lms-patch.sh "$(LMS_ROOT)"
+
+lms-patched-image:
+	@sh tools/build-lms-patched-image.sh 9.1.1
+	@sh tools/build-lms-patched-image.sh 9.0.0
 
 install: dist
 	@test -n "$(PLUGINS_DIR)" || (echo "usage: make install PLUGINS_DIR=/path/to/lms/Plugins" >&2; exit 1)

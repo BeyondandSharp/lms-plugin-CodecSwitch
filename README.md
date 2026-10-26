@@ -7,17 +7,14 @@ codec you can choose:
 
 - **Pass-through** — the plugin does not force a target; LMS plays the original
   stream when the player supports it and keeps its normal fallback otherwise.
-- **Skip** — remove tracks of that codec from the current player queue when
-  they are reached.
 - **Convert to a target codec** — FLAC, WAV, AIFF/raw PCM, MP3, AAC, Ogg
   Vorbis, Opus or ALAC (ALAC is experimental).
 
-The plugin does not patch LMS files. It registers per-player
+The plugin does not modify LMS core files. It registers per-player
 `Slim::Player::TranscodingHelper` profiles at runtime and wraps
 `getConvertCommand2` only while the plugin is active.
 
-Tested with the official Docker images `lmscommunity/lyrionmusicserver:9.0.0`
-and `:9.1.1`.
+Tested with `lmscommunity/lyrionmusicserver:9.0.0` and `:9.1.1`.
 
 ## Requirements
 
@@ -26,21 +23,17 @@ and `:9.1.1`.
   `opusenc`. Those tools cover FLAC, WAV, AIFF/raw PCM, MP3, Ogg Vorbis and
   Opus without extra packages.
 - **FFmpeg is optional but recommended.** It is required for AAC, ALAC, most
-  exotic source formats (WMA/APE/MPC/M4A/ALAC/DSD), and remote-stream target
-  conversion. The official LMS image does not include FFmpeg.
-- `flock` (util-linux) is needed only for the optional worker limit on Unix.
+  exotic source formats (WMA/APE/MPC/M4A/ALAC/DSD), remote-stream target
+  conversion, and bitrate-limited Ogg Vorbis.
 
 ## Install
-
-Build the installable folder:
 
 ```sh
 make dist
 ```
 
-Copy `dist/CodecSwitch` to the LMS plugin directory and restart LMS.
-
-For the official Docker image the third-party plugin directory is
+Copy `dist/CodecSwitch` to the LMS plugin directory and restart LMS. For the
+official Docker image the third-party plugin directory is
 `/config/cache/Plugins`:
 
 ```sh
@@ -59,10 +52,6 @@ settings pages.
 
 ## Server settings
 
-- **Transcoding workers** — maximum number of encoder processes running at the
-  same time. `0` means unlimited (LMS default). On Unix this is enforced with a
-  small `flock` gate shipped in `Bin/codecswitch-gate`; on Windows the limit is
-  unavailable. Native pipelines gate the final encoder process.
 - **Tool paths** — optional absolute paths for `ffmpeg`, `flac`, `lame`, `sox`
   and `opusenc`. Empty means auto-detect from the LMS `Bin` directory/PATH.
 - **Encoder backends** — for FLAC, WAV, AIFF, MP3, Ogg Vorbis and Opus choose
@@ -75,18 +64,10 @@ Changes are applied immediately; no LMS restart is needed.
 
 The player page lists every known source codec with the available actions.
 Targets are only offered when the player reports the matching LMS format and
-the encoder is available. If a player reports no formats, only pass-through and
-skip are shown.
+the encoder is available. If a player reports no formats, only pass-through is
+shown.
 
 Default: every source is pass-through.
-
-### Skip semantics
-
-When a skipped track reaches `playlist newsong`, the plugin issues
-`playlist deleteitem` for it, which makes LMS advance to the next track. It also
-removes up to five upcoming skipped tracks so they are not preloaded. This
-changes only the current player queue — not the music library, saved playlists,
-or other players.
 
 ### Direct / pass-through semantics
 
@@ -100,16 +81,42 @@ fallback rules still apply.
 |---|---|---|---|---|
 | FLAC | `flc` | `flac` | SoX decode → `flac` | lossless |
 | WAV | `wav` | `pcm_s16le` | SoX | 16-bit PCM WAV container |
-| AIFF | `aif` | `pcm_s16be` | SoX raw big-endian | LMS `aif` stream is raw PCM, matching core `flc→aif` |
-| MP3 | `mp3` | `libmp3lame` | SoX decode → `lame` | lossy |
-| AAC | `aac` | `aac` | none | ADTS; FFmpeg required |
-| Ogg Vorbis | `ogg` | `libvorbis` | SoX | lossy |
-| Opus | `ops` | `libopus` | SoX decode → `opusenc` | Ogg Opus |
+| AIFF | `aif` | `pcm_s16be` | SoX raw big-endian | LMS `aif` stream is raw PCM |
+| MP3 | `mp3` | `libmp3lame` | SoX decode → `lame` | lossy, supports B |
+| AAC | `aac` | `aac` | none | ADTS; FFmpeg required; supports B |
+| Ogg Vorbis | `ogg` | `libvorbis` | SoX | lossy; FFmpeg preferred for B |
+| Opus | `ops` | `libopus` | SoX decode → `opusenc` | Ogg Opus; supports B |
 | ALAC | `alc` | `alac` | none | experimental, fragmented MP4 |
 
-The target must be in the player's reported formats. For example, a player that
-reports `pcm` but not `wav` will not be offered WAV; it can still receive FLAC,
-MP3, Ogg Vorbis or AIFF if it reports those formats.
+The target must be in the player's reported formats.
+
+## Bitrate limiting
+
+LMS's per-player **Maximum Bitrate** setting (`maxBitrate`) is honored for
+lossy targets: MP3, AAC, Ogg Vorbis and Opus. The plugin exposes the LMS `B`
+capability on those profiles. Lossless targets do not expose `B` and are not
+limited.
+
+The target codec is still chosen by the CodecSwitch player mapping; the bitrate
+setting is an upper bound, not a target-codec selector.
+
+### Optional LMS core UI patch
+
+LMS's stock audio-settings page only enables the bitrate selector when LAME is
+available and describes it as MP3-only. To show the codec-agnostic labels and
+allow the selector when FFmpeg/opusenc is available without LAME, apply the
+optional core patch:
+
+```sh
+make lms-patch-check LMS_ROOT=/path/to/lms
+make lms-patch       LMS_ROOT=/path/to/lms
+```
+
+The patch is also shipped in `dist/CodecSwitch/patches/lms/`. It modifies only
+`Slim/Web/Settings/Player/Audio.pm` and
+`HTML/EN/settings/player/audio.html`. LMS upgrades overwrite it; re-apply after
+an upgrade. Without the patch, the bitrate limit still works when LAME is
+present; only the UI wording/availability differs.
 
 ## SACDPlayer integration (DST/DFF)
 
@@ -123,28 +130,22 @@ DST/DFF/DSF -> SACDPlayer PCM/FLAC -> CodecSwitch target encoder -> player
 
 Details:
 
-- CodecSwitch asks SACDPlayer for its FLAC/PCM output (forcing `flc`), then
-  pipes that stream into the target encoder. The player only receives the final
-  target format.
-- This requires SACDPlayer's FFmpeg path to work, because SACDPlayer's FLAC/PCM
-  output uses FFmpeg. The second stage uses CodecSwitch's configured backend
-  (native tools or FFmpeg).
-- Target `FLAC` uses SACDPlayer's FLAC output directly; no second stage.
-- When a DSD source has a target mapping, SACDPlayer's own Native/DoP output
-  mode is bypassed in favour of the PCM/FLAC intermediate. To keep SACD
-  Native/DoP output, set `dff`/`dsf` to **Pass-through** in CodecSwitch.
+- For lossy targets, CodecSwitch asks SACDPlayer for raw PCM and pipes it into
+  the target encoder. This avoids an extra FLAC encode/decode.
+- For FLAC targets, SACDPlayer's FLAC output is the final stream; no second
+  encode is performed.
+- For lossless non-FLAC targets (WAV/AIFF/ALAC), CodecSwitch uses PCM from
+  SACDPlayer and encodes the target once.
+- The player only receives the final target format.
+- When a DSD source has a target mapping, SACDPlayer's Native/DoP output mode
+  is bypassed. To keep Native/DoP, set `dff`/`dsf` to **Pass-through**.
 - If SACDPlayer is disabled, CodecSwitch falls back to its own FFmpeg DFF path
   when FFmpeg is available.
-- If SACDPlayer has no usable FFmpeg path, DSD targets are hidden and only
-  pass-through/skip remain.
-- The optional worker limit gates the CodecSwitch post-encoder; SACDPlayer's
-  decode process is managed by SACDPlayer.
 
 ## Remote streams
 
 Local files use the full native/FFmpeg toolchain. HTTP(S) streams get target
 conversion only through FFmpeg; without FFmpeg they keep LMS's normal behavior.
-Skip works for both local and remote tracks.
 
 ## Architecture
 
@@ -152,56 +153,58 @@ Skip works for both local and remote tracks.
 lib/Plugins/CodecSwitch/
 ├── Plugin.pm          # LMS entry point, client events, startup
 ├── Config.pm          # source/target tables and mapping decisions
+├── Capabilities.pm    # provider priorities and external-profile discovery
+├── Orchestrator.pm    # DSD PCM/FLAC path selection and bitrate helper
 ├── Toolchain.pm       # tool discovery, probing, backend selection
 ├── CommandBuilder.pm  # FFmpeg/native command templates
 ├── Profiles.pm        # per-player runtime commandTable profiles
 ├── Hooks.pm           # getConvertCommand2 wrapper
-├── Skip.pm            # playlist newsong skip handler
 ├── Settings.pm        # server settings page
 └── PlayerSettings.pm  # per-player mapping page
 ```
 
+Provider priority (smaller wins):
+
+```text
+unknown / legacy profiles  0   (keeps original systems working)
+SACDPlayer                 50
+FFmpeg plugin              100
+CodecSwitch native         200
+```
+
+Existing non-CodecSwitch profiles win over CodecSwitch rules. CodecSwitch only
+fills gaps and handles DSD composition.
+
 `Profiles.pm` registers local profiles with an `F` capability and remote
 profiles with an `R` capability (the remote profile uses the `-1` duplicate
-instance suffix understood by LMS). Existing profiles with the same exact key
-are saved and restored when the plugin refreshes/removes its rules.
+instance suffix understood by LMS).
 
 ## Development
 
 ```sh
-make test          # unit tests, command generation, real FFmpeg pipeline, gate
+make test          # unit tests, command generation, real FFmpeg pipeline
 make dist          # installable dist/CodecSwitch
 make verify-dist   # verify rendered manifest and modules
 make bundle        # zip + tar.gz release archives
 make smoke         # Docker 9.0.0 + 9.1.1 load/settings smoke test
 ```
 
-The unit tests include a real FFmpeg pipeline test for every target and a
-concurrency test for the worker gate. The Docker smoke test only verifies that
-the server loads the plugin and serves the settings page; it does not create a
-player or test player-side playback.
+The Docker smoke test only verifies that the server loads the plugin and serves
+the settings page; it does not create a player or test player-side playback.
 
 ## Versioning and release
 
 `VERSION` is the single source of truth. `install.xml.in` and `repo.xml.in`
 contain `@VERSION@` / `@RELEASE_URL@` placeholders; `make dist` renders them
-into `build/`. Override the catalog base with:
-
-```sh
-make bundle RELEASE_BASE=https://example.test/releases/download
-```
+into `build/`.
 
 ## Limitations
 
 - ALAC output is experimental; it uses fragmented MP4 for streaming.
 - AIFF target is raw big-endian PCM with LMS stream format `aif`, not an AIFF
-  container. This is intentional and matches LMS core's `flc→aif` rule.
+  container.
 - AAC/ALAC and exotic source codecs need FFmpeg.
-- The worker limit relies on `flock`; it is not available on Windows.
 - Pass-through is not a guarantee of bit-perfect output when the player does
   not support the source codec.
-- When both SACDPlayer and CodecSwitch are enabled, DSD target mappings use
-  SACDPlayer's PCM/FLAC output followed by a CodecSwitch encoder. SACDPlayer's
-  Native/DoP modes are bypassed for those mappings.
-- The plugin does not modify LMS core files and does not handle player-side
-  decoding.
+- The optional LMS core patch is outside the plugin and must be re-applied after
+  LMS upgrades.

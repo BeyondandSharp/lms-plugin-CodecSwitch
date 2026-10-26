@@ -31,12 +31,6 @@
     </table>
   [% END %]
 
-  [% WRAPPER settingGroup title="PLUGIN_CODECSWITCH_WORKERS" desc="PLUGIN_CODECSWITCH_WORKERS_DESC" %]
-    <input type="text" class="stdedit" name="pref_max_jobs" value="[% prefs.max_jobs | html %]" size="5" />
-    <div class="prefDesc">[% "PLUGIN_CODECSWITCH_WORKERS_HELP" | string %]</div>
-    [% UNLESS gate_supported %]<div class="prefDesc red">[% "PLUGIN_CODECSWITCH_GATE_UNAVAILABLE" | string %]</div>[% END %]
-  [% END %]
-
   [% WRAPPER settingGroup title="PLUGIN_CODECSWITCH_PATHS" desc="PLUGIN_CODECSWITCH_PATHS_DESC" %]
     <div class="prefDesc">[% "PLUGIN_CODECSWITCH_FFMPEG" | string %]</div>
     <input type="text" class="stdedit" name="pref_ffmpeg" value="[% prefs.ffmpeg | html %]" size="60" />

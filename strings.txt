@@ -3,8 +3,8 @@ PLUGIN_CODECSWITCH
 	ZH	CodecSwitch
 
 PLUGIN_CODECSWITCH_DESC
-	EN	Per-player source-to-target codec conversion, pass-through and track skipping
-	ZH	按播放器配置源编码到目标编码的转换、直出与曲目跳过
+	EN	Per-player source-to-target codec conversion and pass-through
+	ZH	按播放器配置源编码到目标编码的转换与直出
 
 PLUGIN_CODECSWITCH_SAVED
 	EN	Settings saved.
@@ -19,24 +19,15 @@ PLUGIN_CODECSWITCH_TOOLS
 	ZH	转码工具
 
 PLUGIN_CODECSWITCH_TOOLS_DESC
-	EN	Status of the external tools used for conversion. The LMS image already includes flac, sox and lame; ffmpeg is optional but enables AAC/ALAC and most source formats.
-	ZH	转换所用外部工具的状态。LMS 镜像已包含 flac、sox、lame；ffmpeg 可选，但启用 AAC/ALAC 和大多数源格式。
+	EN	Status of the external tools used for conversion. The LMS image already includes flac, sox and lame; ffmpeg is optional but enables AAC, Ogg Vorbis, Opus, ALAC and most source formats.
+	ZH	转换所用外部工具的状态。LMS 镜像已包含 flac、sox、lame；ffmpeg 可选，但启用 AAC、Ogg Vorbis、Opus、ALAC 和大多数源格式。
 
 PLUGIN_CODECSWITCH_MISSING
 	EN	not found
 	ZH	未找到
 
-PLUGIN_CODECSWITCH_WORKERS
-	EN	Transcoding workers
-	ZH	转码并发数
 
-PLUGIN_CODECSWITCH_WORKERS_DESC
-	EN	Limit how many encoder processes may run at the same time.
-	ZH	限制同时运行的编码进程数量。
 
-PLUGIN_CODECSWITCH_WORKERS_HELP
-	EN	0 = unlimited (LMS default). On Unix this is enforced with flock slots; on Windows the limit is unavailable.
-	ZH	0 = 不限制（LMS 默认）。Unix 下使用 flock 槽位强制执行；Windows 下不可用。
 
 PLUGIN_CODECSWITCH_PATHS
 	EN	Tool paths
@@ -91,8 +82,8 @@ PLUGIN_CODECSWITCH_NATIVE
 	ZH	原生工具
 
 PLUGIN_CODECSWITCH_AAC_ALAC_NOTE
-	EN	AAC and ALAC always require FFmpeg.
-	ZH	AAC 与 ALAC 始终需要 FFmpeg。
+	EN	AAC and ALAC always require FFmpeg; bitrate-limited Ogg Vorbis also needs FFmpeg.
+	ZH	AAC 与 ALAC 始终需要 FFmpeg；带码率限制的 Ogg Vorbis 也需要 FFmpeg。
 
 PLUGIN_CODECSWITCH_PLAYER
 	EN	Codec conversion
@@ -107,8 +98,8 @@ PLUGIN_CODECSWITCH_PLAYER_FORMATS
 	ZH	播放器格式
 
 PLUGIN_CODECSWITCH_NO_FORMATS
-	EN	This player did not report any supported formats. Only pass-through and skip are available.
-	ZH	此播放器未上报支持的格式，仅可使用直出和跳过。
+	EN	This player did not report any supported formats. Only pass-through is available.
+	ZH	此播放器未上报支持的格式，仅可使用直出。
 
 PLUGIN_CODECSWITCH_SOURCE
 	EN	Source codec
@@ -122,17 +113,11 @@ PLUGIN_CODECSWITCH_DIRECT
 	EN	Pass-through (no plugin conversion)
 	ZH	直出（插件不转换）
 
-PLUGIN_CODECSWITCH_SKIP
-	EN	Skip track (remove from current queue)
-	ZH	跳过（从当前队列移除）
 
 PLUGIN_CODECSWITCH_PLAYER_HELP
-	EN	Pass-through lets LMS play the original stream when the player supports it; otherwise LMS's normal fallback applies. Skip removes the track from the current queue when it is reached.
-	ZH	直出时若播放器支持源编码则由 LMS 直接播放，否则仍走 LMS 原有回退逻辑。跳过会在播放到该曲目时把它从当前队列移除。
+	EN	Pass-through lets LMS play the original stream when the player supports it; otherwise LMS's normal fallback applies.
+	ZH	直出时若播放器支持源编码则由 LMS 直接播放，否则仍走 LMS 原有回退逻辑。
 
-PLUGIN_CODECSWITCH_WARN_MAX
-	EN	Invalid worker count; reset to 0.
-	ZH	并发数无效，已重置为 0。
 
 PLUGIN_CODECSWITCH_WARN_TOOL
 	EN	A configured tool path is not executable.
@@ -146,6 +131,18 @@ PLUGIN_CODECSWITCH_WARN_BACKEND
 	EN	Invalid encoder backend; reset to Auto.
 	ZH	编码后端无效，已重置为自动。
 
-PLUGIN_CODECSWITCH_GATE_UNAVAILABLE
-	EN	The worker limit is not available on this platform.
-	ZH	当前平台不支持并发限制。
+PLUGIN_CODECSWITCH_BITRATE_DESC
+	EN	Maximum bitrate for lossy streaming. Applies when the selected target is MP3, AAC, Ogg Vorbis or Opus. Lossless targets are not limited.
+	ZH	有损流的最大码率。目标编码为 MP3、AAC、Ogg Vorbis 或 Opus 时生效；无损目标不受限制。
+
+PLUGIN_CODECSWITCH_BITRATE_CODECS
+	EN	Bitrate-limited targets: MP3, AAC, Ogg Vorbis, Opus.
+	ZH	受码率限制的目标：MP3、AAC、Ogg Vorbis、Opus。
+
+PLUGIN_CODECSWITCH_BITRATE_ENCODERS
+	EN	MP3: LAME or FFmpeg; AAC: FFmpeg; Ogg Vorbis: FFmpeg; Opus: FFmpeg or opusenc.
+	ZH	MP3：LAME 或 FFmpeg；AAC：FFmpeg；Ogg Vorbis：FFmpeg；Opus：FFmpeg 或 opusenc。
+
+PLUGIN_CODECSWITCH_BITRATE_NO_ENCODER
+	EN	No bitrate-capable encoder was found. Install LAME, FFmpeg or opusenc.
+	ZH	未找到支持码率控制的编码器。请安装 LAME、FFmpeg 或 opusenc。

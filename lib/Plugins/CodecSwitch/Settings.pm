@@ -39,14 +39,6 @@ sub handler {
     my @warnings;
 
     if ($params->{saveSettings}) {
-        my $max = defined $params->{pref_max_jobs} ? $params->{pref_max_jobs} : 0;
-        $max =~ s/^\s+|\s+$//g if defined $max;
-        if (!defined $max || $max !~ /^\d+$/ || $max > 64) {
-            push @warnings, { token => 'PLUGIN_CODECSWITCH_WARN_MAX' };
-            $max = 0;
-        }
-        $prefs->set('max_jobs', int($max));
-
         for my $key (@TOOL_KEYS) {
             my $value = _clean_path($params->{"pref_$key"});
             if (length $value && !-x $value && $value =~ m{[/\\]}) {
@@ -82,13 +74,11 @@ sub handler {
     }
 
     $params->{prefs} = {
-        max_jobs => $prefs->get('max_jobs') || 0,
         map { $_ => ($prefs->get($_) || '') } @TOOL_KEYS,
     };
     $params->{tools}    = Plugins::CodecSwitch::Toolchain->status;
     $params->{backends} = \@backends;
     $params->{warnings} = \@warnings;
-    $params->{gate_supported} = ($^O eq 'MSWin32') ? 0 : 1;
 
     return $class->SUPER::handler($client, $params);
 }

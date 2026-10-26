@@ -4,9 +4,8 @@ use strict;
 use warnings;
 
 use File::Basename qw(dirname);
-use File::Path qw(mkpath);
 use File::Spec;
-use File::Spec::Functions qw(catdir catfile);
+use File::Spec::Functions qw(catdir);
 
 use Slim::Utils::Prefs;
 
@@ -20,15 +19,11 @@ my $ROOT = File::Spec->rel2abs(catdir(dirname(__FILE__), '..', '..', '..'));
 my %BIN_CACHE;
 my %PROBE_CACHE;
 my $TOOLS_CACHE;
-my $GATE_CACHE;
-my $GATE_CACHE_SET = 0;
 
 sub reset_cache {
     %BIN_CACHE   = ();
     %PROBE_CACHE = ();
     $TOOLS_CACHE = undef;
-    $GATE_CACHE = undef;
-    $GATE_CACHE_SET = 0;
     return 1;
 }
 
@@ -203,48 +198,6 @@ sub backend_pref {
     return $value;
 }
 
-sub _gate {
-    my ($class) = @_;
-    return $GATE_CACHE if $GATE_CACHE_SET;
-    $GATE_CACHE_SET = 1;
-
-    return $GATE_CACHE = undef if $^O eq 'MSWin32';
-
-    my $max = $prefs->get('max_jobs') || 0;
-    return $GATE_CACHE = undef unless $max =~ /^\d+$/ && $max > 0;
-    $max = 64 if $max > 64;
-
-    my $gate = $class->gate_bin or return $GATE_CACHE = undef;
-    my $flock = $class->_which('flock') or return $GATE_CACHE = undef;
-
-    my $dir = $class->lock_dir;
-    mkpath($dir, 0, 0755) unless -d $dir;
-    return $GATE_CACHE = undef unless -d $dir && -w $dir;
-
-    return $GATE_CACHE = {
-        bin => $gate,
-        max => int($max),
-        dir => $dir,
-    };
-}
-
-sub gate_bin {
-    my ($class) = @_;
-    my $path = catfile($ROOT, 'Bin', 'codecswitch-gate');
-    return -x $path ? $path : undef;
-}
-
-sub lock_dir {
-    my ($class) = @_;
-    my $cachedir;
-    if (eval { require Slim::Utils::Prefs; 1 }) {
-        my $server = eval { preferences('server') };
-        $cachedir = eval { $server->get('cachedir') } if $server;
-    }
-    $cachedir ||= File::Spec->tmpdir;
-    return catdir($cachedir, 'codecswitch-locks');
-}
-
 sub resampler {
     my ($class) = @_;
     my $probe = $class->probe('ffmpeg');
@@ -257,7 +210,10 @@ sub _candidates {
     return ('ffmpeg') unless $target->{native};
 
     my $pref = $class->backend_pref($target);
-    return ('native', 'ffmpeg') if $pref eq 'auto';
+    if ($pref eq 'auto') {
+        return ('ffmpeg', 'native') if $target->{key} eq 'ogg' && $class->bin('ffmpeg');
+        return ('native', 'ffmpeg');
+    }
     return ($pref, $pref eq 'native' ? 'ffmpeg' : 'native');
 }
 
@@ -277,7 +233,6 @@ sub plan {
     }
 
     my $tools = $class->tools;
-    my $gate = $class->_gate;
     my %seen;
 
     for my $backend ($class->_candidates($source, $target, $remote)) {
@@ -292,7 +247,6 @@ sub plan {
                 tools      => $tools,
                 remote     => $remote,
                 resampler  => $class->resampler,
-                gate       => $gate,
             });
         }
         else {
@@ -302,7 +256,6 @@ sub plan {
                 target     => $target,
                 lms_format => $lms_format,
                 tools      => $tools,
-                gate       => $gate,
             });
         }
         return $plan if $plan;
@@ -320,13 +273,12 @@ sub _post_candidates {
 }
 
 sub post_plan {
-    my ($class, $client, $target_key, $input_format) = @_;
+    my ($class, $client, $target_key, $input_format, %opts) = @_;
     my $target = Plugins::CodecSwitch::Config->target_by_key($target_key) or return undef;
     my $resolved = Plugins::CodecSwitch::Config->resolve_target($client, $target_key) or return undef;
     return undef if $resolved->{lms_format} eq $input_format;
 
     my $tools = $class->tools;
-    my $gate = $class->_gate;
     my %seen;
 
     for my $backend ($class->_post_candidates($input_format, $target)) {
@@ -339,8 +291,11 @@ sub post_plan {
                 target       => $target,
                 lms_format   => $resolved->{lms_format},
                 input_format => $input_format,
+                input_rate     => $opts{input_rate},
+                input_channels => $opts{input_channels},
+                input_sample_fmt => $opts{input_sample_fmt},
+                bitrate      => $opts{bitrate},
                 tools        => $tools,
-                gate         => $gate,
             });
         }
         else {
@@ -350,8 +305,11 @@ sub post_plan {
                 target       => $target,
                 lms_format   => $resolved->{lms_format},
                 input_format => $input_format,
+                input_rate     => $opts{input_rate},
+                input_channels => $opts{input_channels},
+                input_sample_fmt => $opts{input_sample_fmt},
+                bitrate      => $opts{bitrate},
                 tools        => $tools,
-                gate         => $gate,
             });
         }
         return $plan if $plan;
@@ -440,28 +398,6 @@ sub status {
             detail  => $detail,
         };
     }
-
-    my $flock = $class->_which('flock');
-    push @status, {
-        name    => 'flock',
-        label   => 'flock (worker limit)',
-        ok      => $flock ? 1 : 0,
-        path    => $flock || '',
-        version => '',
-        detail  => $flock ? '' : 'worker limit unavailable',
-    };
-
-    my $gate = $class->gate_bin;
-    push @status, {
-        name    => 'gate',
-        label   => 'Concurrency gate',
-        ok      => $gate ? 1 : 0,
-        path    => $gate || '',
-        version => '',
-        detail  => ($gate && $flock && $^O ne 'MSWin32')
-            ? 'available'
-            : 'worker limit unavailable',
-    };
 
     return \@status;
 }

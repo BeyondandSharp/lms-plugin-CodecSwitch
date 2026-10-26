@@ -24,7 +24,6 @@ $prefs->set('sox', '/bin/true');
 $prefs->set('flac', '/bin/true');
 $prefs->set('lame', '/bin/true');
 $prefs->set('opusenc', '/bin/true');
-$prefs->set('max_jobs', 2);
 Plugins::CodecSwitch::Toolchain->reset_cache;
 
 my $client = fake_client();
@@ -45,7 +44,8 @@ is($c->{"mp3-flc-*-$id-1"}{R}, 'noArgs', 'remote profile has R');
 ok(exists $t->{"mp3-aac-*-$id"}, 'MP3 -> AAC profile exists');
 like($t->{"mp3-aac-*-$id"}, qr/libf?f?mpeg|ffmpeg/, 'AAC profile uses ffmpeg');
 like($t->{"mp3-wav-*-$id"}, qr/\/bin\/true/, 'native WAV profile uses configured sox');
-like($t->{"mp3-flc-*-$id"}, qr/codecswitch-gate/, 'profiles use the worker gate when max_jobs > 0');
+is($c->{"mp3-aac-*-$id"}{B}, 'BITRATE=-b:a %Bk', 'AAC profile exposes B capability');
+ok(!exists $c->{"mp3-wav-*-$id"}{B}, 'lossless profile has no B capability');
 
 $prefs->set('backend_flc', 'ffmpeg');
 Plugins::CodecSwitch::Toolchain->reset_cache;
@@ -68,9 +68,9 @@ my $old_profile = "mp3-flc-*-$id";
 $t->{$old_profile} = 'OLD-COMMAND';
 $c->{$old_profile} = { F => 'noArgs' };
 Plugins::CodecSwitch::Profiles->setup($client);
-isnt($t->{$old_profile}, 'OLD-COMMAND', 'plugin overrides old exact-client profile');
+is($t->{$old_profile}, 'OLD-COMMAND', 'existing external profile keeps precedence');
 Plugins::CodecSwitch::Profiles->remove($client);
-is($t->{$old_profile}, 'OLD-COMMAND', 'old profile is restored on remove');
+is($t->{$old_profile}, 'OLD-COMMAND', 'external profile is not removed');
 ok(!exists $t->{"mp3-aac-*-$id"}, 'plugin profiles are removed');
 
 Slim::Player::Client->set_clients($client);

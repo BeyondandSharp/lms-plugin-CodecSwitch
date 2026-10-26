@@ -45,11 +45,11 @@ my $direct = Plugins::CodecSwitch::Config->decision($flac, $client);
 is($direct->{action}, 'direct', 'default action is direct');
 is(Plugins::CodecSwitch::Config->mapping_value($client, 'flc'), 'direct', 'default mapping value');
 
-$prefs->client($client)->set('mapping', { flc => 'skip', mp3 => 'aac', wav => 'bogus' });
+$prefs->client($client)->set('mapping', { flc => 'mp3', mp3 => 'aac', wav => 'bogus' });
 Plugins::CodecSwitch::Config->invalidate($client);
 
-my $skip = Plugins::CodecSwitch::Config->decision($flac, $client);
-is($skip->{action}, 'skip', 'skip mapping');
+my $mapped = Plugins::CodecSwitch::Config->decision($flac, $client);
+is($mapped->{action}, 'target', 'target mapping for FLAC');
 my $convert = Plugins::CodecSwitch::Config->decision($mp3, $client);
 is($convert->{action}, 'target', 'target mapping');
 is($convert->{target}, 'aac', 'target key');
@@ -58,10 +58,10 @@ is(Plugins::CodecSwitch::Config->decision($wav, $client)->{action}, 'direct',
     'invalid stored value falls back to direct');
 
 my $normalized = Plugins::CodecSwitch::Config->normalize_mapping(
-    { flc => 'skip', mp3 => 'aac', wav => 'nope' },
+    { flc => 'mp3', mp3 => 'aac', wav => 'nope' },
     { aac => 1 },
 );
-is($normalized->{flc}, 'skip', 'normalize keeps skip');
+is($normalized->{flc}, 'direct', 'normalize resets unavailable target');
 is($normalized->{mp3}, 'aac', 'normalize keeps allowed target');
 is($normalized->{wav}, 'direct', 'normalize resets invalid target');
 is($normalized->{ape}, 'direct', 'normalize fills missing source');

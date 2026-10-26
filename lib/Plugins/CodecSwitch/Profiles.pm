@@ -5,6 +5,7 @@ use warnings;
 
 use Slim::Utils::Log;
 
+use Plugins::CodecSwitch::Capabilities;
 use Plugins::CodecSwitch::Config;
 use Plugins::CodecSwitch::Toolchain;
 
@@ -62,7 +63,9 @@ sub setup {
         # encoding stage after SACD's PCM/FLAC output instead.
         next if $sacd && Plugins::CodecSwitch::Config->is_dsd_source($source);
 
-        if ($formats{$source}) {
+        if ($formats{$source}
+            && !Plugins::CodecSwitch::Capabilities->has_external_profile(
+                $client, $source, $source, 0)) {
             $class->_add(
                 $clientid,
                 "$source-$source-*-$clientid",
@@ -75,8 +78,13 @@ sub setup {
         for my $target (Plugins::CodecSwitch::Config->targets) {
             next unless grep { $formats{$_} } @{ $target->{formats} };
 
+            my $resolved = Plugins::CodecSwitch::Config->resolve_target($client, $target->{key});
+            next unless $resolved;
+
             my $local = Plugins::CodecSwitch::Toolchain->plan($client, $source, $target->{key}, 0);
-            if ($local && !$local->{direct}) {
+            if ($local && !$local->{direct}
+                && !Plugins::CodecSwitch::Capabilities->has_external_profile(
+                    $client, $source, $local->{lms_format}, 0)) {
                 $class->_add(
                     $clientid,
                     "$source-$local->{lms_format}-*-$clientid",
@@ -87,7 +95,9 @@ sub setup {
             }
 
             my $remote = Plugins::CodecSwitch::Toolchain->plan($client, $source, $target->{key}, 1);
-            if ($remote && !$remote->{direct}) {
+            if ($remote && !$remote->{direct}
+                && !Plugins::CodecSwitch::Capabilities->has_external_profile(
+                    $client, $source, $remote->{lms_format}, 1)) {
                 $class->_add(
                     $clientid,
                     "$source-$remote->{lms_format}-*-$clientid-1",
@@ -102,6 +112,16 @@ sub setup {
     $SETUP{$clientid} = 1;
     $log->debug("registered $count CodecSwitch profiles for $clientid");
     return $count;
+}
+
+
+sub is_managed_profile {
+    my ($class, $profile) = @_;
+    return 0 unless defined $profile;
+    for my $clientid (keys %REGISTERED) {
+        return 1 if $REGISTERED{$clientid}{$profile};
+    }
+    return 0;
 }
 
 sub remove {

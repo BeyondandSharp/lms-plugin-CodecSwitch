@@ -36,9 +36,8 @@ sub _options_for {
 
     my @options = (
         { value => 'direct', string => 'PLUGIN_CODECSWITCH_DIRECT' },
-        { value => 'skip',   string => 'PLUGIN_CODECSWITCH_SKIP' },
     );
-    my %valid = (direct => 1, skip => 1);
+    my %valid = (direct => 1);
 
     for my $target (Plugins::CodecSwitch::Config->targets) {
         next unless Plugins::CodecSwitch::Toolchain->target_available(

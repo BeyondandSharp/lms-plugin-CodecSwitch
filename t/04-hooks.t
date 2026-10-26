@@ -44,9 +44,9 @@ $prefs->client($client)->set('mapping', { flc => 'direct' });
 Plugins::CodecSwitch::Config->invalidate($client);
 is(call_hook(undef), undef, 'direct does not override the format');
 
-$prefs->client($client)->set('mapping', { flc => 'skip' });
+$prefs->client($client)->set('mapping', { flc => 'direct' });
 Plugins::CodecSwitch::Config->invalidate($client);
-is(call_hook(undef), undef, 'skip does not override the format');
+is(call_hook(undef), undef, 'direct does not override the format');
 
 $prefs->client($client)->set('mapping', { flc => 'mp3' });
 Plugins::CodecSwitch::Config->invalidate($client);
@@ -125,11 +125,45 @@ like($chained->{command}, qr/\/bin\/true/, 'post encoder is present in the chain
 is($chained->{post_backend}, 'native', 'post backend is reported');
 is($chained->{profile}, 'dff-flc-*-test', 'SACD base profile is preserved for sample-rate handling');
 
+$prefs->client($client)->set('maxBitrate', 128);
+my $bchained = Slim::Player::TranscodingHelper::getConvertCommand2(
+    $song, 'dff', [ 'I', 'F' ], [], [ 'B' ], 'dff', undef,
+);
+ok($bchained, 'SACD bitrate chain returns a transcoder');
+like($bchained->{command}, qr/(?:-b:a 128k|--abr 128)/, 'SACD bitrate chain uses 128k');
+is($bchained->{post_format}, 'mp3', 'SACD bitrate chain reports final format');
+ok($bchained->{codecswitch_chain}, 'SACD bitrate chain is marked');
+delete $Slim::Utils::Prefs::CLIENT_PREFS{'plugin.codecswitch'}{$client->id}{maxBitrate};
+
 $prefs->client($client)->set('mapping', { dff => 'flc' });
 Plugins::CodecSwitch::Config->invalidate($client);
 my $flac_chain = run_hook('dff');
 is($flac_chain->{streamformat}, 'flc', 'target FLAC needs no second stage');
 is($flac_chain->{command}, 'SACD-CMD $FILE$', 'target FLAC returns the SACD command unchanged');
+
+# Simulate a SACD provider that can decode directly to raw PCM.
+{
+    package Plugins::SACDPlayer::Transcoder;
+    sub decode_plan {
+        my ($class, $client, $format, $opts) = @_;
+        return undef unless $format eq 'pcm';
+        return {
+            command      => 'SACD-PCM-CMD $FILE$',
+            capabilities => { F => 'noArgs' },
+            format       => 'pcm',
+        };
+    }
+}
+$INC{'Plugins/SACDPlayer/Transcoder.pm'} = __FILE__;
+$prefs->client($client)->set('mapping', { dff => 'mp3' });
+Plugins::CodecSwitch::Config->invalidate($client);
+my $pcm_chain = run_hook('dff');
+ok($pcm_chain, 'SACD PCM chain returns a transcoder');
+like($pcm_chain->{command}, qr/^\(SACD-PCM-CMD \$FILE\$\) \| /, 'SACD PCM command is piped');
+like($pcm_chain->{command}, qr/-f s16le -ar 44100 -ac 2 -i -/, 'PCM pipe declares format');
+is($pcm_chain->{streamformat}, 'mp3', 'PCM chain final format');
+is($pcm_chain->{post_format}, 'mp3', 'PCM chain marks post format');
+delete $INC{'Plugins/SACDPlayer/Transcoder.pm'};
 
 Slim::Utils::PluginManager->set_enabled('Plugins::SACDPlayer::Plugin', 0);
 $prefs->client($client)->set('mapping', { dff => 'mp3' });

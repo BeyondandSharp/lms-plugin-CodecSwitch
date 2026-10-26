@@ -53,24 +53,13 @@ my $spaced = Plugins::CodecSwitch::CommandBuilder->ffmpeg_plan({
 });
 like($spaced->{command}, qr/^"\/opt\/My Tools\/ffmpeg"/, 'tool path with spaces is quoted');
 
-my $gate = { bin => '/opt/plugin/Bin/codecswitch-gate', max => 2, dir => '/tmp/cs locks' };
-my $gated = Plugins::CodecSwitch::CommandBuilder->ffmpeg_plan({
-    source     => 'flc',
-    target     => $flac,
-    lms_format => 'flc',
-    tools      => $tools,
-    gate       => $gate,
-});
-like($gated->{command}, qr/^"\/opt\/plugin\/Bin\/codecswitch-gate" 2 "\/tmp\/cs locks" "/,
-    'ffmpeg is gated');
-
 my $native_targets = {
     flc => [qr/\| "\/usr\/bin\/flac" -cs --totally-silent -/, qr/-t wav - \$RESAMPLE\$/],
     wav => [qr/^"\/usr\/bin\/sox" -q \$FILE\$ -t wav - \$RESAMPLE\$/, qr/-t wav/],
     aif => [qr/-t raw -e signed -b 16 -B - \$RESAMPLE\$/, qr/\-B/],
-    mp3 => [qr/\| "\/usr\/bin\/lame" --silent -q 2 - -/, qr/-t wav/],
+    mp3 => [qr/\| "\/usr\/bin\/lame" --silent --abr 192 \$BITRATE\$ - -/, qr/-t wav/],
     ogg => [qr/-t ogg -C 5 - \$RESAMPLE\$/, qr/ogg/],
-    ops => [qr/\| "\/usr\/bin\/opusenc" --quiet --bitrate 128 - -/, qr/-t wav/],
+    ops => [qr/\| "\/usr\/bin\/opusenc" --quiet --bitrate 128 \$BITRATE\$ - -/, qr/-t wav/],
 };
 
 for my $key (sort keys %$native_targets) {
@@ -115,13 +104,6 @@ is(
     'native plan rejects remote input',
 );
 
-my $native_gated = Plugins::CodecSwitch::CommandBuilder->native_plan({
-    source => 'mp3', target => $native_flac, lms_format => 'flc',
-    tools => $tools, gate => $gate,
-});
-like($native_gated->{command}, qr/\| "\/opt\/plugin\/Bin\/codecswitch-gate" 2 "\/tmp\/cs locks" "\/usr\/bin\/flac"/,
-    'native pipeline gates the encoder');
-
 my $direct = Plugins::CodecSwitch::CommandBuilder->direct_plan({
     source => 'flc', target => 'flc', lms_format => 'flc',
 });
@@ -148,21 +130,20 @@ for my $key (sort keys %$pipe_targets) {
         target       => $target,
         lms_format   => $target->{formats}[0],
         tools        => $tools,
-        gate         => $gate,
     });
     ok($plan, "$key ffmpeg pipe plan");
     like($plan->{command}, qr/-f flac -i -/, "$key pipe reads FLAC from stdin");
     like($plan->{command}, qr/-c:a \Q$pipe_targets->{$key}\E/, "$key pipe encoder");
     unlike($plan->{command}, qr/\$FILE\$/, "$key pipe has no FILE placeholder");
     unlike($plan->{command}, qr/\$START\$|\$END\$|\$RESAMPLE\$/, "$key pipe has no base-stage placeholders");
-    like($plan->{command}, qr/^"\/opt\/plugin\/Bin\/codecswitch-gate"/, "$key pipe is gated");
+    like($plan->{command}, qr/^"\/usr\/bin\/ffmpeg"/, "$key pipe is direct ffmpeg");
 }
 
 my $pipe_native = {
     flc => qr/^"\/usr\/bin\/sox" -q -t flac - -t wav - \| .*flac/,
     wav => qr/^"\/usr\/bin\/sox" -q -t flac - -t wav -/,
     aif => qr/-t raw -e signed -b 16 -B -/,
-    mp3 => qr/\| .*lame.* --silent -q 2 - -/,
+    mp3 => qr/\| .*lame.* --silent --abr 192 - -/,
     ogg => qr/-t ogg -C 5 -/,
     ops => qr/\| .*opusenc.* --quiet --bitrate 128 - -/,
 };
@@ -197,5 +178,32 @@ is(
     undef,
     'native pipe rejects DFF',
 );
+
+
+# Bitrate capability: only lossy targets expose B and a $BITRATE$ placeholder.
+for my $key (qw(mp3 aac ogg ops)) {
+    my $target = Plugins::CodecSwitch::Config->target_by_key($key);
+    my $plan = Plugins::CodecSwitch::CommandBuilder->ffmpeg_plan({
+        source => 'flc', target => $target, lms_format => $target->{formats}[0], tools => $tools,
+    });
+    is($plan->{capabilities}{B}, 'BITRATE=-b:a %Bk', "$key ffmpeg has B capability");
+    like($plan->{command}, qr/\$BITRATE\$/, "$key ffmpeg uses BITRATE");
+}
+for my $key (qw(flc wav aif alc)) {
+    my $target = Plugins::CodecSwitch::Config->target_by_key($key);
+    my $plan = Plugins::CodecSwitch::CommandBuilder->ffmpeg_plan({
+        source => 'flc', target => $target, lms_format => $target->{formats}[0], tools => $tools,
+    });
+    ok(!exists $plan->{capabilities}{B}, "$key has no B capability");
+    unlike($plan->{command}, qr/\$BITRATE\$/, "$key has no BITRATE placeholder");
+}
+my $pipe_aac = Plugins::CodecSwitch::CommandBuilder->ffmpeg_pipe_plan({
+    input_format => 'pcm', input_sample_fmt => 's24le', input_rate => 176400,
+    input_channels => 2, bitrate => 128,
+    target => Plugins::CodecSwitch::Config->target_by_key('aac'), lms_format => 'aac', tools => $tools,
+});
+like($pipe_aac->{command}, qr/-f s24le -ar 176400 -ac 2 -i -/, 'PCM pipe carries sample format/rate/channels');
+like($pipe_aac->{command}, qr/-b:a 128k/, 'post encoder uses numeric bitrate');
+unlike($pipe_aac->{command}, qr/\$BITRATE\$/, 'post encoder does not leave BITRATE unresolved');
 
 done_testing;
