@@ -129,4 +129,73 @@ is($direct->{command}, '-', 'direct command');
 ok($direct->{capabilities}{I} && $direct->{capabilities}{F} && $direct->{capabilities}{R},
     'direct capabilities');
 
+
+my $pipe_targets = {
+    flc => 'flac',
+    wav => 'pcm_s16le',
+    aif => 'pcm_s16be',
+    mp3 => 'libmp3lame',
+    aac => 'aac',
+    ogg => 'libvorbis',
+    ops => 'libopus',
+    alc => 'alac',
+};
+
+for my $key (sort keys %$pipe_targets) {
+    my $target = Plugins::CodecSwitch::Config->target_by_key($key);
+    my $plan = Plugins::CodecSwitch::CommandBuilder->ffmpeg_pipe_plan({
+        input_format => 'flc',
+        target       => $target,
+        lms_format   => $target->{formats}[0],
+        tools        => $tools,
+        gate         => $gate,
+    });
+    ok($plan, "$key ffmpeg pipe plan");
+    like($plan->{command}, qr/-f flac -i -/, "$key pipe reads FLAC from stdin");
+    like($plan->{command}, qr/-c:a \Q$pipe_targets->{$key}\E/, "$key pipe encoder");
+    unlike($plan->{command}, qr/\$FILE\$/, "$key pipe has no FILE placeholder");
+    unlike($plan->{command}, qr/\$START\$|\$END\$|\$RESAMPLE\$/, "$key pipe has no base-stage placeholders");
+    like($plan->{command}, qr/^"\/opt\/plugin\/Bin\/codecswitch-gate"/, "$key pipe is gated");
+}
+
+my $pipe_native = {
+    flc => qr/^"\/usr\/bin\/sox" -q -t flac - -t wav - \| .*flac/,
+    wav => qr/^"\/usr\/bin\/sox" -q -t flac - -t wav -/,
+    aif => qr/-t raw -e signed -b 16 -B -/,
+    mp3 => qr/\| .*lame.* --silent -q 2 - -/,
+    ogg => qr/-t ogg -C 5 -/,
+    ops => qr/\| .*opusenc.* --quiet --bitrate 128 - -/,
+};
+
+for my $key (sort keys %$pipe_native) {
+    my $target = Plugins::CodecSwitch::Config->target_by_key($key);
+    my $plan = Plugins::CodecSwitch::CommandBuilder->native_pipe_plan({
+        input_format => 'flc',
+        target       => $target,
+        lms_format   => $target->{formats}[0],
+        tools        => $tools,
+    });
+    ok($plan, "$key native pipe plan");
+    like($plan->{command}, $pipe_native->{$key}, "$key native pipe shape");
+    unlike($plan->{command}, qr/\$FILE\$|\$START\$|\$END\$|\$RESAMPLE\$/, "$key native pipe has no base-stage placeholders");
+}
+
+my $dff_pipe = Plugins::CodecSwitch::CommandBuilder->ffmpeg_pipe_plan({
+    input_format => 'dff',
+    target       => Plugins::CodecSwitch::Config->target_by_key('flc'),
+    lms_format   => 'flc',
+    tools        => $tools,
+});
+like($dff_pipe->{command}, qr/-f iff -i -/, 'DFF pipe uses iff demuxer');
+is(
+    Plugins::CodecSwitch::CommandBuilder->native_pipe_plan({
+        input_format => 'dff',
+        target       => Plugins::CodecSwitch::Config->target_by_key('flc'),
+        lms_format   => 'flc',
+        tools        => $tools,
+    }),
+    undef,
+    'native pipe rejects DFF',
+);
+
 done_testing;

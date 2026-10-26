@@ -5,6 +5,7 @@ use Test::More;
 use lib 'lib', 't/lib';
 use CodecSwitchTest qw(reset_env fake_client fake_track set_formats);
 use Slim::Utils::Prefs;
+use Slim::Utils::PluginManager;
 use Plugins::CodecSwitch::Config;
 
 my $prefs = preferences('plugin.codecswitch');
@@ -68,5 +69,12 @@ is($normalized->{ape}, 'direct', 'normalize fills missing source');
 ok(Plugins::CodecSwitch::Config->is_remote(fake_track(url => 'http://example.test/a.flac')),
     'remote URL detected');
 ok(!Plugins::CodecSwitch::Config->is_remote($flac), 'local file not remote');
+
+ok(!Plugins::CodecSwitch::Config->sacd_enabled, 'SACDPlayer is not enabled by default');
+Slim::Utils::PluginManager->set_enabled('Plugins::SACDPlayer::Plugin', 1);
+ok(Plugins::CodecSwitch::Config->sacd_enabled, 'SACDPlayer enabled is detected');
+ok(Plugins::CodecSwitch::Config->is_dsd_source('dff'), 'DFF is a DSD source');
+ok(Plugins::CodecSwitch::Config->is_dsd_source('dsf'), 'DSF is a DSD source');
+ok(!Plugins::CodecSwitch::Config->is_dsd_source('flc'), 'FLAC is not a DSD source');
 
 done_testing;

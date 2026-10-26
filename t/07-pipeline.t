@@ -97,4 +97,39 @@ my $spacedCmd = render($plan->{command}, $src) . ' > ' . shell_quote($spacedOut)
 is(system($spacedCmd), 0, 'pipeline works with spaces in tool path');
 ok(-s $spacedOut, 'spaced-path output exists');
 
+# Second-stage (post-SACD) pipeline: a FLAC stream on stdin, encoded to target.
+my $srcflac = catfile($dir, 'tone.flac');
+is(system($ffmpeg, '-hide_banner', '-loglevel', 'error', '-y',
+    '-i', $src, '-c:a', 'flac', '-f', 'flac', $srcflac), 0, 'generated test FLAC');
+
+for my $key (sort keys %expected) {
+    my $target = Plugins::CodecSwitch::Config->target_by_key($key);
+    my $plan = Plugins::CodecSwitch::CommandBuilder->ffmpeg_pipe_plan({
+        input_format => 'flc',
+        target       => $target,
+        lms_format   => $target->{formats}[0],
+        tools        => { ffmpeg => $ffmpeg },
+        resampler    => 'swr',
+    });
+    ok($plan, "$key post plan");
+
+    my $out = catfile($dir, "post.$key");
+    my $err = catfile($dir, "post-err.$key");
+    my $command = 'cat ' . shell_quote($srcflac) . ' | '
+        . $plan->{command}
+        . ' > ' . shell_quote($out)
+        . ' 2> ' . shell_quote($err);
+    is(system($command), 0, "$key post pipeline exits 0");
+    ok(-s $out, "$key post output exists");
+
+    if ($expected{$key} eq 'raw-pcm-s16be') {
+        is(-s $out, 44100 * 2 * 2, "$key post raw PCM byte count");
+    }
+    else {
+        my $codec = qx{$ffprobe -v error -select_streams a:0 -show_entries stream=codec_name -of default=nw=1:nk=1 $out};
+        $codec =~ s/\s+//g;
+        is($codec, $expected{$key}, "$key post output codec");
+    }
+}
+
 done_testing;

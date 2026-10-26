@@ -14,6 +14,7 @@ use Slim::Player::Playlist;
 use Slim::Player::Client;
 use Slim::Player::Song;
 use Slim::Control::Request;
+use Slim::Utils::PluginManager;
 
 our @EXPORT_OK = qw(reset_env fake_client fake_track fake_song set_formats);
 
@@ -23,6 +24,7 @@ sub reset_env {
     Slim::Utils::Prefs::reset();
     Slim::Player::TranscodingHelper::reset();
     Slim::Control::Request::reset();
+    Slim::Utils::PluginManager->reset();
     Slim::Utils::Misc::clear_bins();
     Slim::Player::CapabilitiesHelper::set_formats();
     Slim::Player::Playlist->set_playlist();

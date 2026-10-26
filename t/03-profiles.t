@@ -5,6 +5,7 @@ use Test::More;
 use lib 'lib', 't/lib';
 use CodecSwitchTest qw(reset_env fake_client set_formats);
 use Slim::Utils::Prefs;
+use Slim::Utils::PluginManager;
 use Slim::Player::TranscodingHelper;
 use Slim::Player::Client;
 use Plugins::CodecSwitch::Profiles;
@@ -76,5 +77,26 @@ Slim::Player::Client->set_clients($client);
 is(Plugins::CodecSwitch::Profiles->setup_all() >= 1, 1, 'setup_all visits connected clients');
 Plugins::CodecSwitch::Profiles->remove_all;
 ok(!exists $t->{"mp3-aac-*-$id"}, 'remove_all clears profiles');
+
+set_formats(qw(flc mp3 wav aac ops dff dsf));
+Slim::Utils::PluginManager->set_enabled('Plugins::SACDPlayer::Plugin', 1);
+Plugins::CodecSwitch::Toolchain->reset_cache;
+Plugins::CodecSwitch::Profiles->setup($client);
+ok(!exists $t->{"dff-flc-*-$id"}, 'SACDPlayer owns dff-flc profile');
+ok(!exists $t->{"dsf-flc-*-$id"}, 'SACDPlayer owns dsf-flc profile');
+ok(exists $t->{"mp3-flc-*-$id"}, 'non-DSD profiles are still registered');
+
+$t->{"dff-flc-*-$id"} = 'SACD-FAKE';
+ok(Plugins::CodecSwitch::Toolchain->target_available($client, 'dff', 'flc'),
+    'SACD FLAC output makes the FLAC target available');
+ok(Plugins::CodecSwitch::Toolchain->target_available($client, 'dff', 'mp3'),
+    'post encoder makes the MP3 target available');
+delete $t->{"dff-flc-*-$id"};
+
+Slim::Utils::PluginManager->set_enabled('Plugins::SACDPlayer::Plugin', 0);
+Plugins::CodecSwitch::Toolchain->reset_cache;
+Plugins::CodecSwitch::Profiles->setup($client);
+ok(exists $t->{"dff-flc-*-$id"}, 'dff profiles return when SACDPlayer is disabled');
+Plugins::CodecSwitch::Profiles->remove_all;
 
 done_testing;
