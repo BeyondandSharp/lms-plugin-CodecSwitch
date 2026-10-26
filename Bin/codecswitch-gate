@@ -26,7 +26,7 @@ while :; do
     exec 9>&- 2>/dev/null || true
     n=$((n + 1))
     if [ "$n" -ge 50 ]; then
-        sleep 0.02
+        sleep 0.02 2>/dev/null || sleep 1
         n=0
     fi
 done

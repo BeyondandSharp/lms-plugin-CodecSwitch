@@ -79,10 +79,10 @@ sub _getConvertCommand2 {
 
     if ($plan) {
         $args[5] = $plan->{lms_format};
+        my $name = eval { $client->name } || eval { $client->id } || 'client';
         $log->debug(
             "forcing " . $decision->{source} . " -> " . $plan->{lms_format}
-            . " (" . ($plan->{backend} || 'unknown') . ") for "
-            . ($client->name || $client->id || 'client')
+            . " (" . ($plan->{backend} || 'unknown') . ") for " . $name
         );
     }
     else {
