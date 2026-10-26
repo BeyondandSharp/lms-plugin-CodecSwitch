@@ -119,6 +119,8 @@ DST/DFF/DSF -> SACDPlayer PCM/FLAC -> CodecSwitch 目标编码器 -> 播放器
   `dff`/`dsf` 设为 **直出**。
 - SACDPlayer 未启用时，CodecSwitch 会在 FFmpeg 可用时回退到自己的 DFF 解码。
 - SACDPlayer 没有可用的 FFmpeg 路径时，DSD 目标编码不会显示，只保留直出/跳过。
+- 可选的并发限制作用于 CodecSwitch 的第二段编码器；SACDPlayer 的解码进程由
+  SACDPlayer 自己管理。
 
 ## 远程流
 

@@ -137,6 +137,8 @@ Details:
   when FFmpeg is available.
 - If SACDPlayer has no usable FFmpeg path, DSD targets are hidden and only
   pass-through/skip remain.
+- The optional worker limit gates the CodecSwitch post-encoder; SACDPlayer's
+  decode process is managed by SACDPlayer.
 
 ## Remote streams
 
