@@ -1,0 +1,7 @@
+build/
+dist/
+t/tmp/
+t/fixtures/
+*.log
+*.swp
+.DS_Store

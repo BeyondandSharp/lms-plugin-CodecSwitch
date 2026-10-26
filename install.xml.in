@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<!-- Template: rendered to build/install.xml from VERSION by make. -->
+<extension>
+  <name>PLUGIN_CODECSWITCH</name>
+  <module>Plugins::CodecSwitch::Plugin</module>
+  <importmodule>Plugins::CodecSwitch::Plugin</importmodule>
+  <version>@VERSION@</version>
+  <description>PLUGIN_CODECSWITCH_DESC</description>
+  <creator>CodecSwitch contributors</creator>
+  <homepageURL>https://github.com/BeyondandSharp/lms-plugin-CodecSwitch</homepageURL>
+  <defaultState>enabled</defaultState>
+  <type>2</type>
+  <!-- type=extension -->
+  <targetApplication>
+    <id>SlimServer</id>
+    <minVersion>9.0.0</minVersion>
+    <maxVersion>9.*</maxVersion>
+  </targetApplication>
+</extension>

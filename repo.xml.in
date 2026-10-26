@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<!-- Template: rendered to build/repo.xml from VERSION by make. -->
+<repo>
+  <title>CodecSwitch</title>
+  <plugin name="CodecSwitch" version="@VERSION@" minTarget="9.0.0" maxTarget="9.*">
+    <title>PLUGIN_CODECSWITCH</title>
+    <desc>PLUGIN_CODECSWITCH_DESC</desc>
+    <url>@RELEASE_URL@</url>
+  </plugin>
+</repo>
