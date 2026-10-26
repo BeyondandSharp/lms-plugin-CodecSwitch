@@ -46,6 +46,18 @@ like($t->{"mp3-aac-*-$id"}, qr/libf?f?mpeg|ffmpeg/, 'AAC profile uses ffmpeg');
 like($t->{"mp3-wav-*-$id"}, qr/\/bin\/true/, 'native WAV profile uses configured sox');
 like($t->{"mp3-flc-*-$id"}, qr/codecswitch-gate/, 'profiles use the worker gate when max_jobs > 0');
 
+$prefs->set('backend_flc', 'ffmpeg');
+Plugins::CodecSwitch::Toolchain->reset_cache;
+Plugins::CodecSwitch::Profiles->setup($client);
+like($t->{"mp3-flc-*-$id"}, qr/ffmpeg/, 'forced FFmpeg backend is used');
+
+$prefs->set('backend_flc', 'native');
+Plugins::CodecSwitch::Toolchain->reset_cache;
+Plugins::CodecSwitch::Profiles->setup($client);
+like($t->{"mp3-flc-*-$id"}, qr/\/bin\/true.*\|/, 'forced native backend is used');
+$prefs->set('backend_flc', 'auto');
+Plugins::CodecSwitch::Toolchain->reset_cache;
+
 my @before = sort keys %$t;
 Plugins::CodecSwitch::Profiles->setup($client);
 my @after = sort keys %$t;

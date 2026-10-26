@@ -145,3 +145,7 @@ PLUGIN_CODECSWITCH_WARN_MAPPING
 PLUGIN_CODECSWITCH_WARN_BACKEND
 	EN	Invalid encoder backend; reset to Auto.
 	ZH	编码后端无效，已重置为自动。
+
+PLUGIN_CODECSWITCH_GATE_UNAVAILABLE
+	EN	The worker limit is not available on this platform.
+	ZH	当前平台不支持并发限制。
