@@ -82,19 +82,19 @@ make lms-patch       LMS_ROOT=/path/to/lms
 
 补丁也随 `dist/CodecSwitch/patches/lms/` 发布。它只修改 `Slim/Web/Settings/Player/Audio.pm` 和 `HTML/EN/settings/player/audio.html`。LMS 升级会覆盖，升级后需重新应用。不应用补丁时，只要 LAME 存在，码率限制仍然生效，只是 UI 文案/可用性不同。
 
-## SACDPlayer 集成
+## DSD provider 集成（DST/DFF）
 
-启用 SACDPlayer 时，CodecSwitch 把 `dff`/`dsf` profile 交给 SACDPlayer，自己负责后续目标编码：
+CodecSwitch 不检查具体插件名，而是检测 LMS 中是否已有可用的 `dff`/`dsf → flc` profile。**SACD** 插件只是其中一种 provider，其他 DSD 解码插件同样适用。
 
 ```text
-DST/DFF/DSF -> SACDPlayer PCM/FLAC -> CodecSwitch 目标编码 -> 播放器
+DST/DFF/DSF -> 已注册的 DSD provider PCM/FLAC -> CodecSwitch 目标编码 -> 播放器
 ```
 
-- 有损目标：CodecSwitch 请求 SACDPlayer 输出 raw PCM，再直接编码，避免多一次 FLAC 编解码。
-- FLAC 目标：SACDPlayer 的 FLAC 就是最终流，不再二次 FLAC 编码。
+- 有损目标：CodecSwitch 请求 provider 输出 raw PCM（若支持），再直接编码，避免多一次 FLAC 编解码。
+- FLAC 目标：provider 的 FLAC 就是最终流，不再二次 FLAC 编码。
 - WAV/AIFF/ALAC 目标：请求 PCM，再编码一次目标。
-- 有 DSD 目标映射时会绕过 SACDPlayer 的 Native/DoP；要保留 Native/DoP，把 `dff`/`dsf` 设为直出。
-- 未启用 SACDPlayer 时，CodecSwitch 在 FFmpeg 可用时使用自己的 DFF 路径。
+- 有 DSD 目标映射时会绕过 provider 的 Native/DoP；要保留 Native/DoP，把 `dff`/`dsf` 设为直出。
+- 没有 provider 注册 DSD profile 时，CodecSwitch 在 FFmpeg 可用时使用自己的 DFF 路径。
 
 ## 远程流
 
@@ -104,7 +104,7 @@ DST/DFF/DSF -> SACDPlayer PCM/FLAC -> CodecSwitch 目标编码 -> 播放器
 
 ```text
 unknown / legacy profiles  0   最高，尽量保留原系统
-SACDPlayer                 50
+DSD provider（如 SACD）    50
 FFmpeg plugin              100
 CodecSwitch native         200
 ```

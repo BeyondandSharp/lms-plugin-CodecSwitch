@@ -5,7 +5,6 @@ use Test::More;
 use lib 'lib', 't/lib';
 use CodecSwitchTest qw(reset_env fake_client fake_track fake_song set_formats);
 use Slim::Utils::Prefs;
-use Slim::Utils::PluginManager;
 use Slim::Player::TranscodingHelper;
 use Plugins::CodecSwitch::Config;
 use Plugins::CodecSwitch::Hooks;
@@ -73,9 +72,8 @@ is(call_hook(undef), 'mp3', 'unlisted source can still be converted by ffmpeg');
 Plugins::CodecSwitch::Hooks->uninstall;
 ok(1, 'hook uninstalls without error');
 
-# SACDPlayer chaining: SACD decodes DST/DFF to FLAC, then CodecSwitch encodes
-# that FLAC stream into the player's target format.
-Slim::Utils::PluginManager->set_enabled('Plugins::SACDPlayer::Plugin', 1);
+# DSD provider chaining: the provider decodes DST/DFF to FLAC, then
+# CodecSwitch encodes that FLAC stream into the player's target format.
 set_formats(qw(flc mp3 wav aac dff dsf));
 $prefs->set('sox', '/bin/true');
 $prefs->set('flac', '/bin/true');
@@ -83,6 +81,9 @@ $prefs->set('lame', '/bin/true');
 $prefs->set('opusenc', '/bin/true');
 Plugins::CodecSwitch::Toolchain->reset_cache;
 Plugins::CodecSwitch::Hooks->install;
+require Plugins::CodecSwitch::Profiles;
+Plugins::CodecSwitch::Profiles->remove($client);
+$Slim::Player::TranscodingHelper::commandTable{"dff-flc-*-" . $client->id} = 'SACD-FAKE';
 
 $Slim::Player::TranscodingHelper::MOCK = sub {
     my @a = @_;
@@ -165,12 +166,12 @@ is($pcm_chain->{streamformat}, 'mp3', 'PCM chain final format');
 is($pcm_chain->{post_format}, 'mp3', 'PCM chain marks post format');
 delete $INC{'Plugins/SACDPlayer/Transcoder.pm'};
 
-Slim::Utils::PluginManager->set_enabled('Plugins::SACDPlayer::Plugin', 0);
+delete $Slim::Player::TranscodingHelper::commandTable{"dff-flc-*-" . $client->id};
 $prefs->client($client)->set('mapping', { dff => 'mp3' });
 Plugins::CodecSwitch::Config->invalidate($client);
 my $direct = run_hook(undef);
-is($direct->{streamformat}, 'mp3', 'without SACD, CodecSwitch uses its own DFF profile');
-like($direct->{command}, qr/^STUB /, 'without SACD, the original transcoder is used');
+is($direct->{streamformat}, 'mp3', 'without a DSD provider, CodecSwitch uses its own DFF profile');
+like($direct->{command}, qr/^STUB /, 'without a DSD provider, the original transcoder is used');
 
 $Slim::Player::TranscodingHelper::MOCK = undef;
 Plugins::CodecSwitch::Hooks->uninstall;

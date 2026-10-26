@@ -9,6 +9,7 @@ use File::Spec::Functions qw(catdir);
 
 use Slim::Utils::Prefs;
 
+use Plugins::CodecSwitch::Capabilities;
 use Plugins::CodecSwitch::Config;
 use Plugins::CodecSwitch::CommandBuilder;
 
@@ -318,34 +319,12 @@ sub post_plan {
     return undef;
 }
 
-sub sacd_flc_available {
+sub dsd_flc_available {
     my ($class, $client, $source) = @_;
-    return 0 unless Plugins::CodecSwitch::Config->sacd_enabled;
-    return 0 unless Plugins::CodecSwitch::Config->is_dsd_source($source);
     return 0 unless $client;
-
-    my $id = eval { $client->id } || eval { $client->macaddress } || '';
-    return 0 unless length $id;
-
-    if (eval { require Slim::Player::TranscodingHelper; 1 }) {
-        my $table  = eval { Slim::Player::TranscodingHelper::Conversions() } || {};
-        my $player = eval { $client->model } || '';
-        for my $profile (
-            "$source-flc-*-$id",
-            "$source-flc-$player-$id",
-            "$source-flc-*-*",
-        ) {
-            return 1 if $table->{$profile};
-        }
-    }
-
-    # SACD profiles may not have been registered yet on first playback; if
-    # SACDPlayer has an ffmpeg binary it can produce the intermediate FLAC.
-    my $ffmpeg = eval {
-        require Plugins::SACDPlayer::Transcoder;
-        Plugins::SACDPlayer::Transcoder->ffmpeg_bin;
-    };
-    return $ffmpeg ? 1 : 0;
+    return 0 unless Plugins::CodecSwitch::Config->is_dsd_source($source);
+    return 0 unless Plugins::CodecSwitch::Capabilities->has_dsd_provider($client, $source);
+    return 1;
 }
 
 sub target_available {
@@ -356,8 +335,8 @@ sub target_available {
         or return 0;
 
     if (Plugins::CodecSwitch::Config->is_dsd_source($source)
-        && Plugins::CodecSwitch::Config->sacd_enabled) {
-        return 0 unless $class->sacd_flc_available($client, $source);
+        && Plugins::CodecSwitch::Capabilities->has_dsd_provider($client, $source)) {
+        return 0 unless $class->dsd_flc_available($client, $source);
         return 1 if $resolved->{lms_format} eq 'flc';
         return 1 if $class->post_plan($client, $target_key, 'flc');
         return 0;

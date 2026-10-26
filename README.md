@@ -118,29 +118,31 @@ The patch is also shipped in `dist/CodecSwitch/patches/lms/`. It modifies only
 an upgrade. Without the patch, the bitrate limit still works when LAME is
 present; only the UI wording/availability differs.
 
-## SACDPlayer integration (DST/DFF)
+## DSD provider integration (DST/DFF)
 
-When `SACDPlayer` is enabled, CodecSwitch hands `dff`/`dsf` profiles to
-SACDPlayer instead of registering competing rules. If a DSD source has a target
-format in CodecSwitch, the pipeline becomes:
+CodecSwitch does not look for a specific plugin name. It detects whether LMS
+already has a usable `dff`/`dsf → flc` profile registered by any provider.
+The **SACD** plugin is one such provider; another DSD decoder plugin works the
+same way. If a DSD source has a target format in CodecSwitch, the pipeline
+becomes:
 
 ```text
-DST/DFF/DSF -> SACDPlayer PCM/FLAC -> CodecSwitch target encoder -> player
+DST/DFF/DSF -> registered DSD provider PCM/FLAC -> CodecSwitch target encoder -> player
 ```
 
 Details:
 
-- For lossy targets, CodecSwitch asks SACDPlayer for raw PCM and pipes it into
-  the target encoder. This avoids an extra FLAC encode/decode.
-- For FLAC targets, SACDPlayer's FLAC output is the final stream; no second
+- For lossy targets, CodecSwitch asks the provider for raw PCM (when supported)
+  and pipes it into the target encoder. This avoids an extra FLAC encode/decode.
+- For FLAC targets, the provider's FLAC output is the final stream; no second
   encode is performed.
 - For lossless non-FLAC targets (WAV/AIFF/ALAC), CodecSwitch uses PCM from
-  SACDPlayer and encodes the target once.
+  the provider and encodes the target once.
 - The player only receives the final target format.
-- When a DSD source has a target mapping, SACDPlayer's Native/DoP output mode
-  is bypassed. To keep Native/DoP, set `dff`/`dsf` to **Pass-through**.
-- If SACDPlayer is disabled, CodecSwitch falls back to its own FFmpeg DFF path
-  when FFmpeg is available.
+- When a DSD source has a target mapping, the provider's Native/DoP output
+  mode is bypassed. To keep Native/DoP, set `dff`/`dsf` to **Pass-through**.
+- If no provider has registered a DSD profile, CodecSwitch falls back to its own
+  FFmpeg DFF path when FFmpeg is available.
 
 ## Remote streams
 
@@ -167,7 +169,7 @@ Provider priority (smaller wins):
 
 ```text
 unknown / legacy profiles  0   (keeps original systems working)
-SACDPlayer                 50
+DSD provider (e.g. SACD)    50
 FFmpeg plugin              100
 CodecSwitch native         200
 ```

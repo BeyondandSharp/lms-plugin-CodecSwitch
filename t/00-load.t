@@ -11,6 +11,7 @@ use_ok('Plugins::CodecSwitch::Profiles');
 use_ok('Plugins::CodecSwitch::Hooks');
 use_ok('Plugins::CodecSwitch::Capabilities');
 use_ok('Plugins::CodecSwitch::Orchestrator');
+use_ok('Plugins::CodecSwitch::Capabilities');
 use_ok('Plugins::CodecSwitch::Settings');
 use_ok('Plugins::CodecSwitch::PlayerSettings');
 use_ok('Plugins::CodecSwitch::Plugin');

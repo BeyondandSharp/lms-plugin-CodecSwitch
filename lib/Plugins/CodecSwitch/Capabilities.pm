@@ -102,4 +102,22 @@ sub unknown_dsd_direct {
     return 0;
 }
 
+
+sub dsd_provider {
+    my ($class, $client, $source) = @_;
+    return undef unless $source && $source =~ /^(?:dff|dsf)$/;
+    return undef unless $client;
+
+    my $edge = $class->external_profile($client, $source, 'flc', 0);
+    return undef unless $edge;
+    return undef unless defined $edge->{command} && $edge->{command} ne '-';
+
+    return $edge;
+}
+
+sub has_dsd_provider {
+    my ($class, $client, $source) = @_;
+    return $class->dsd_provider($client, $source) ? 1 : 0;
+}
+
 1;

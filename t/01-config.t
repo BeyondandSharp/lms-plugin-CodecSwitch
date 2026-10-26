@@ -7,12 +7,14 @@ use CodecSwitchTest qw(reset_env fake_client fake_track set_formats);
 use Slim::Utils::Prefs;
 use Slim::Utils::PluginManager;
 use Plugins::CodecSwitch::Config;
+use Plugins::CodecSwitch::Capabilities;
 
 my $prefs = preferences('plugin.codecswitch');
 reset_env();
 set_formats(qw(flc mp3 wav aac ops));
 
 my $client = fake_client();
+my $id = $client->id;
 
 is(scalar(Plugins::CodecSwitch::Config->sources), 21, 'source list is populated');
 ok(Plugins::CodecSwitch::Config->target_by_key('flc'), 'FLAC target exists');
@@ -70,11 +72,25 @@ ok(Plugins::CodecSwitch::Config->is_remote(fake_track(url => 'http://example.tes
     'remote URL detected');
 ok(!Plugins::CodecSwitch::Config->is_remote($flac), 'local file not remote');
 
-ok(!Plugins::CodecSwitch::Config->sacd_enabled, 'SACDPlayer is not enabled by default');
-Slim::Utils::PluginManager->set_enabled('Plugins::SACDPlayer::Plugin', 1);
-ok(Plugins::CodecSwitch::Config->sacd_enabled, 'SACDPlayer enabled is detected');
+my $table = \%Slim::Player::TranscodingHelper::commandTable;
+ok(!Plugins::CodecSwitch::Capabilities->has_dsd_provider($client, 'dff'),
+    'no DSD provider without a registered profile');
+$table->{"dff-flc-*-$id"} = 'SACD-FAKE';
+ok(Plugins::CodecSwitch::Capabilities->has_dsd_provider($client, 'dff'),
+    'client-specific dff-flc profile is detected');
+ok(!Plugins::CodecSwitch::Capabilities->has_dsd_provider($client, 'dsf'),
+    'dsf is detected independently');
+$table->{'dsf-flc-*-*'} = 'SACD-FAKE';
+ok(Plugins::CodecSwitch::Capabilities->has_dsd_provider($client, 'dsf'),
+    'wildcard dsf-flc profile is detected');
+$table->{'dff-flc-*-*'} = '-';
+ok(!Plugins::CodecSwitch::Capabilities->has_dsd_provider($client, 'dff'),
+    'passthrough profile is not a DSD provider');
 ok(Plugins::CodecSwitch::Config->is_dsd_source('dff'), 'DFF is a DSD source');
 ok(Plugins::CodecSwitch::Config->is_dsd_source('dsf'), 'DSF is a DSD source');
 ok(!Plugins::CodecSwitch::Config->is_dsd_source('flc'), 'FLAC is not a DSD source');
+delete $table->{"dff-flc-*-$id"};
+delete $table->{'dsf-flc-*-*'};
+delete $table->{'dff-flc-*-*'};
 
 done_testing;

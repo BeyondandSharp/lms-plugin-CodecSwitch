@@ -53,15 +53,15 @@ sub setup {
     $class->remove($client);
 
     my %formats = map { $_ => 1 } Plugins::CodecSwitch::Config->player_formats($client);
-    my $sacd = Plugins::CodecSwitch::Config->sacd_enabled;
     my $count = 0;
 
     for my $source_spec (Plugins::CodecSwitch::Config->sources) {
         my $source = $source_spec->{key};
 
-        # Let SACDPlayer own dff/dsf profiles.  CodecSwitch chains a second
-        # encoding stage after SACD's PCM/FLAC output instead.
-        next if $sacd && Plugins::CodecSwitch::Config->is_dsd_source($source);
+        # Let an already-registered DSD provider own dff/dsf profiles.
+        # CodecSwitch chains a second stage after its PCM/FLAC output.
+        next if Plugins::CodecSwitch::Config->is_dsd_source($source)
+            && Plugins::CodecSwitch::Capabilities->has_dsd_provider($client, $source);
 
         if ($formats{$source}
             && !Plugins::CodecSwitch::Capabilities->has_external_profile(

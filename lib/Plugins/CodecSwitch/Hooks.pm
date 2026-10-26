@@ -73,19 +73,10 @@ sub _chain_after_sacd {
         $client, $decision->{source}, $target->{lms_format}, 0
     );
 
-    # SACDPlayer's PCM/FLAC output is the intermediate stream.
+    # The registered DSD provider's PCM/FLAC output is the intermediate stream.
     my @base_args = @$args;
     $base_args[5] = 'flc';
     my $base = $orig_get_convert->(@base_args);
-
-    if (!$base || ref $base ne 'HASH') {
-        my $ok = eval {
-            require Plugins::SACDPlayer::Transcoder;
-            Plugins::SACDPlayer::Transcoder->setup($client);
-            1;
-        };
-        $base = $orig_get_convert->(@base_args) if $ok;
-    }
 
     return undef unless $base && ref $base eq 'HASH';
 
@@ -102,7 +93,7 @@ sub _chain_after_sacd {
         return $rule->{base};
     }
 
-    # Fallback to the old FLAC-only chain for older SACD plugins.
+    # Fallback to the old FLAC-only chain for older DSD providers.
     return undef unless ($base->{streamformat} || '') eq 'flc';
 
     my $post = Plugins::CodecSwitch::Toolchain->post_plan(
@@ -130,14 +121,14 @@ sub _getConvertCommand2 {
     my $source = ($track && $client)
         ? Plugins::CodecSwitch::Config->source_for_track($track)
         : undef;
-    my $sacd_dsd = $source
+    my $dsd_provider = $source
         && Plugins::CodecSwitch::Config->is_dsd_source($source)
-        && Plugins::CodecSwitch::Config->sacd_enabled;
+        && Plugins::CodecSwitch::Capabilities->has_dsd_provider($client, $source);
 
-    # Respect an explicit format choice for non-DSD material.  For DSD with
-    # SACDPlayer enabled we deliberately take control so the SACD output can
-    # be followed by a CodecSwitch encoder.
-    if (defined $formatOverride && length $formatOverride && !$sacd_dsd) {
+    # Respect an explicit format choice for non-DSD material.  For DSD with a
+    # registered provider we deliberately take control so the provider output
+    # can be followed by a CodecSwitch encoder.
+    if (defined $formatOverride && length $formatOverride && !$dsd_provider) {
         return $orig_get_convert->(@args);
     }
 
@@ -146,7 +137,7 @@ sub _getConvertCommand2 {
     my $decision = Plugins::CodecSwitch::Config->decision($track, $client);
     return $orig_get_convert->(@args) unless $decision->{action} eq 'target';
 
-    if ($sacd_dsd) {
+    if ($dsd_provider) {
         my $chained = __PACKAGE__->_chain_after_sacd(\@args, $client, $decision, $want);
         return $chained if $chained;
         return $orig_get_convert->(@args);
