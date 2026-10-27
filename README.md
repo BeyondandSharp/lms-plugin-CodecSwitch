@@ -1,5 +1,7 @@
 # CodecSwitch for Lyrion Music Server
 
+![GitHub Release](https://img.shields.io/github/v/release/BeyondandSharp/lms-plugin-CodecSwitch)
+
 [中文说明](README.zh-CN.md)
 
 `CodecSwitch` gives each player its own source-codec policy. For every source

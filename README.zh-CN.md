@@ -1,5 +1,7 @@
 # CodecSwitch for Lyrion Music Server
 
+![GitHub Release](https://img.shields.io/github/v/release/BeyondandSharp/lms-plugin-CodecSwitch)
+
 [English](README.md)
 
 `CodecSwitch` 为每个播放器单独配置源编码策略。对每种源编码可以选择：
