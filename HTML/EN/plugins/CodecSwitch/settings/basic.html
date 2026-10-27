@@ -32,28 +32,6 @@
   [% END %]
 
 
-  [% WRAPPER settingGroup title="PLUGIN_CODECSWITCH_LOGGING" desc="PLUGIN_CODECSWITCH_LOGGING_DESC" %]
-    <table class="prefTable">
-      <tr>
-        <th>[% "PLUGIN_CODECSWITCH_LOG_CATEGORY" | string %]</th>
-        <th>[% "PLUGIN_CODECSWITCH_LOG_LEVEL" | string %]</th>
-      </tr>
-      [% FOREACH l IN log_rows %]
-        <tr>
-          <td>[% l.label | html %]<br/><span class="prefDesc">[% l.category | html %]</span></td>
-          <td>
-            <select class="stdedit" name="pref_log_[% l.key | html %]">
-              [% FOREACH level IN l.levels %]
-                <option value="[% level | html %]"[% IF level == l.current %] selected[% END %]>[% level | html %]</option>
-              [% END %]
-            </select>
-          </td>
-        </tr>
-      [% END %]
-    </table>
-    <div class="prefDesc">[% "PLUGIN_CODECSWITCH_LOGGING_HELP" | string %]</div>
-  [% END %]
-
   [% WRAPPER settingGroup title="PLUGIN_CODECSWITCH_PATHS" desc="PLUGIN_CODECSWITCH_PATHS_DESC" %]
     <div class="prefDesc">[% "PLUGIN_CODECSWITCH_FFMPEG" | string %]</div>
     <input type="text" class="stdedit" name="pref_ffmpeg" value="[% prefs.ffmpeg | html %]" size="60" />

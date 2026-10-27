@@ -5,7 +5,6 @@ use warnings;
 
 use base qw(Slim::Web::Settings);
 
-use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 use Slim::Web::HTTP::CSRF;
 
@@ -17,13 +16,6 @@ my $prefs = preferences('plugin.codecswitch');
 
 my @BACKEND_TARGETS = qw(flc wav aif mp3 ogg ops);
 my @TOOL_KEYS       = qw(ffmpeg flac lame sox opusenc);
-my @LOG_LEVELS      = qw(OFF FATAL ERROR WARN INFO DEBUG);
-my @LOG_CATEGORIES  = (
-    { key => 'plugin_codecswitch', category => 'plugin.codecswitch', label => 'CodecSwitch' },
-    { key => 'plugin_sacdplayer',  category => 'plugin.sacdplayer',  label => 'SACDPlayer' },
-    { key => 'player_source',      category => 'player.source',      label => 'LMS transcoding' },
-    { key => 'plugin_ffmpeg',      category => 'plugin.ffmpeg',      label => 'FFmpeg plugin' },
-);
 
 sub name {
     return Slim::Web::HTTP::CSRF->protectName('PLUGIN_CODECSWITCH');
@@ -47,14 +39,6 @@ sub handler {
     my @warnings;
 
     if ($params->{saveSettings}) {
-        for my $spec (@LOG_CATEGORIES) {
-            my $value = $params->{'pref_log_' . $spec->{key}} || 'ERROR';
-            $value = 'ERROR' unless grep { $_ eq $value } @LOG_LEVELS;
-            Slim::Utils::Log->setLogLevelForCategory($spec->{category}, $value);
-        }
-        Slim::Utils::Log->persist(1);
-        Slim::Utils::Log->reInit();
-
         for my $key (@TOOL_KEYS) {
             my $value = _clean_path($params->{"pref_$key"});
             if (length $value && !-x $value && $value =~ m{[/\\]}) {
@@ -92,17 +76,6 @@ sub handler {
     $params->{prefs} = {
         map { $_ => ($prefs->get($_) || '') } @TOOL_KEYS,
     };
-
-    my $levels = Slim::Utils::Log->allCategories;
-    my @log_rows;
-    for my $spec (@LOG_CATEGORIES) {
-        push @log_rows, {
-            %$spec,
-            current => $levels->{ $spec->{category} } || 'ERROR',
-            levels  => \@LOG_LEVELS,
-        };
-    }
-    $params->{log_rows} = \@log_rows;
     $params->{tools}    = Plugins::CodecSwitch::Toolchain->status;
     $params->{backends} = \@backends;
     $params->{warnings} = \@warnings;

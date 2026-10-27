@@ -183,16 +183,17 @@ instance suffix understood by LMS).
 
 ## Debug logging
 
-`Settings → CodecSwitch → Debug logging` lets you set the log levels for:
+The plugin registers its own log category, so it appears in the standard LMS
+logging page:
 
-- `plugin.codecswitch`
-- `plugin.sacdplayer`
-- `player.source` (LMS transcoding)
-- `plugin.ffmpeg`
+```text
+Settings → Advanced → Logging → Advanced logging settings
+```
 
-Levels are `OFF`, `FATAL`, `ERROR`, `WARN`, `INFO` and `DEBUG`. Changes are
-applied immediately and persisted to the LMS logging configuration. Use
-`DEBUG` only while diagnosing; it can create large log files.
+Use that page to set `plugin.codecswitch`, `plugin.sacdplayer`,
+`plugin.ffmpeg` and the core `player.source` category. Use `DEBUG` only while
+diagnosing; it can create large log files. CodecSwitch does not add a separate
+logging UI to its own settings page.
 
 ## Development
 

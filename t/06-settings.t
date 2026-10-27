@@ -32,9 +32,6 @@ my $params = {
     saveSettings   => 1,
     pref_ffmpeg    => '/nope/ffmpeg',
     pref_backend_flc => 'bogus',
-    pref_log_plugin_codecswitch => 'DEBUG',
-    pref_log_player_source => 'BOGUS',
-    pref_log_plugin_sacdplayer => 'INFO',
 };
 my $result = Plugins::CodecSwitch::Settings->handler(undef, $params);
 is($prefs->get('backend_flc'), 'auto', 'invalid backend reset to auto');
@@ -42,11 +39,6 @@ ok(@{ $result->{warnings} }, 'server warnings recorded');
 ok($result->{saved}, 'server saved flag');
 ok(ref $result->{tools} eq 'ARRAY' && @{ $result->{tools} }, 'tool status is populated');
 ok(ref $result->{backends} eq 'ARRAY' && @{ $result->{backends} }, 'backend rows are populated');
-ok(ref $result->{log_rows} eq 'ARRAY' && @{ $result->{log_rows} }, 'log rows are populated');
-is($Slim::Utils::Log::LEVELS{'plugin.codecswitch'}, 'DEBUG', 'CodecSwitch log level saved');
-is($Slim::Utils::Log::LEVELS{'plugin.sacdplayer'}, 'INFO', 'SACD log level saved');
-is($Slim::Utils::Log::LEVELS{'player.source'}, 'ERROR', 'invalid log level reset to ERROR');
-is($Slim::Utils::Log::PERSIST, 1, 'log levels are persisted');
 
 my $client = fake_client(formats => [qw(flc mp3 wav aac)]);
 my $playerParams = {

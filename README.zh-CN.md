@@ -127,14 +127,13 @@ lib/Plugins/CodecSwitch/
 
 ## 调试日志
 
-在 `Settings → CodecSwitch → 调试日志` 中可以设置以下类别的日志级别：
+插件注册了自己的日志类别，因此会出现在 LMS 标准日志设置页：
 
-- `plugin.codecswitch`
-- `plugin.sacdplayer`
-- `player.source`（LMS 转码）
-- `plugin.ffmpeg`
+```text
+Settings → Advanced → Logging → Advanced logging settings
+```
 
-级别为 `OFF`、`FATAL`、`ERROR`、`WARN`、`INFO`、`DEBUG`。修改立即生效并写入 LMS 日志配置。仅在排查问题时使用 `DEBUG`，可能产生较大的日志文件。
+在那里设置 `plugin.codecswitch`、`plugin.sacdplayer`、`plugin.ffmpeg` 和核心的 `player.source` 类别。仅在排查问题时使用 `DEBUG`，可能产生较大的日志文件。CodecSwitch 不再在自己的设置页提供单独的日志设置。
 
 ## 开发
 
