@@ -124,16 +124,22 @@ sub sacd_rule {
     );
     return undef unless $post;
 
-    my %out = %$decode_base;
+    # Start from the LMS transcoder when available: it carries samplerateLimit,
+    # rateLimit and the other metadata tokenizeConvertCommand2 needs for the
+    # base profile's D/B capabilities.  Overlay only the composed command and
+    # final format below.
+    my %out = %{ $base || $decode_base };
     $out{command}      = '(' . $decode_base->{command} . ') | ' . $post->{command};
     $out{streamformat} = $lms_target;
     $out{post_format}  = $lms_target;
     $out{post_backend} = $post->{backend};
     $out{codecswitch_chain} = 1;
-    $out{capabilities} = {
-        %{ $decode_base->{capabilities} || {} },
-        B => 'BITRATE=-b:a %Bk',
-    } if $bitrate && $target->{bitrate};
+    if ($bitrate && $target->{bitrate}) {
+        $out{capabilities} = {
+            %{ $out{capabilities} || {} },
+            B => 'BITRATE=-b:a %Bk',
+        };
+    }
 
     $log->debug(
         "SACD $source -> $input_format -> $lms_target"

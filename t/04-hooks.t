@@ -96,6 +96,8 @@ $Slim::Player::TranscodingHelper::MOCK = sub {
             capabilities     => { F => 'noArgs', T => 'START=-ss %s' },
             usedCapabilities => ['T'],
             streamMode       => 'F',
+            samplerateLimit  => 44100,
+            rateLimit        => 320,
         };
     }
     return {
@@ -125,6 +127,8 @@ like($chained->{command}, qr/^\(SACD-CMD \$FILE\$\) \| /, 'SACD command is piped
 like($chained->{command}, qr/\/bin\/true/, 'post encoder is present in the chained command');
 is($chained->{post_backend}, 'native', 'post backend is reported');
 is($chained->{profile}, 'dff-flc-*-test', 'SACD base profile is preserved for sample-rate handling');
+is($chained->{samplerateLimit}, 44100, 'samplerateLimit is preserved for tokenization');
+is($chained->{rateLimit}, 320, 'rateLimit is preserved for tokenization');
 
 $prefs->client($client)->set('maxBitrate', 128);
 my $bchained = Slim::Player::TranscodingHelper::getConvertCommand2(
@@ -164,6 +168,7 @@ like($pcm_chain->{command}, qr/^\(SACD-PCM-CMD \$FILE\$\) \| /, 'SACD PCM comman
 like($pcm_chain->{command}, qr/-f s16le -ar 44100 -ac 2 -i -/, 'PCM pipe declares format');
 is($pcm_chain->{streamformat}, 'mp3', 'PCM chain final format');
 is($pcm_chain->{post_format}, 'mp3', 'PCM chain marks post format');
+is($pcm_chain->{samplerateLimit}, 44100, 'PCM chain preserves samplerateLimit');
 delete $INC{'Plugins/SACDPlayer/Transcoder.pm'};
 
 delete $Slim::Player::TranscodingHelper::commandTable{"dff-flc-*-" . $client->id};
