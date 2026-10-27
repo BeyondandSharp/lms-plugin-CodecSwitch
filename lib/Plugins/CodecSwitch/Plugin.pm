@@ -6,7 +6,12 @@ use warnings;
 use Slim::Utils::Log;
 use Slim::Utils::Prefs;
 
-my $log = logger('plugin.codecswitch');
+my $log = Slim::Utils::Log->addLogCategory({
+    category     => 'plugin.codecswitch',
+    defaultLevel => 'ERROR',
+    description  => 'PLUGIN_CODECSWITCH',
+    logGroups    => 'TRANSCODING',
+});
 my $prefs = preferences('plugin.codecswitch');
 
 sub initPlugin {

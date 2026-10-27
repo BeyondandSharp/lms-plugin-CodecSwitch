@@ -29,6 +29,9 @@ sub reset_env {
     Slim::Player::CapabilitiesHelper::set_formats();
     Slim::Player::Playlist->set_playlist();
     Slim::Player::Client->set_clients();
+    %Slim::Utils::Log::CATEGORIES = ();
+    %Slim::Utils::Log::LEVELS = ();
+    $Slim::Utils::Log::PERSIST = 0;
 
     $TMPDIR = tempdir(CLEANUP => 1) unless $TMPDIR && -d $TMPDIR;
     $Slim::Utils::Prefs::PREFS{server}{cachedir} = $TMPDIR;

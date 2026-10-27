@@ -146,3 +146,23 @@ PLUGIN_CODECSWITCH_BITRATE_ENCODERS
 PLUGIN_CODECSWITCH_BITRATE_NO_ENCODER
 	EN	No bitrate-capable encoder was found. Install LAME, FFmpeg or opusenc.
 	ZH	未找到支持码率控制的编码器。请安装 LAME、FFmpeg 或 opusenc。
+
+PLUGIN_CODECSWITCH_LOGGING
+	EN	Debug logging
+	ZH	调试日志
+
+PLUGIN_CODECSWITCH_LOGGING_DESC
+	EN	Set log levels for CodecSwitch, SACDPlayer, LMS transcoding and the FFmpeg plugin. Changes are applied immediately and persisted.
+	ZH	设置 CodecSwitch、SACDPlayer、LMS 转码和 FFmpeg 插件的日志级别。修改立即生效并持久化。
+
+PLUGIN_CODECSWITCH_LOG_CATEGORY
+	EN	Category
+	ZH	类别
+
+PLUGIN_CODECSWITCH_LOG_LEVEL
+	EN	Level
+	ZH	级别
+
+PLUGIN_CODECSWITCH_LOGGING_HELP
+	EN	Use DEBUG only while diagnosing; it can produce large log files. View the server log for the output.
+	ZH	仅在排查问题时使用 DEBUG，可能产生较大的日志文件。日志输出请查看服务器日志。

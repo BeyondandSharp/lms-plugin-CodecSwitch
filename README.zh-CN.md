@@ -125,6 +125,17 @@ lib/Plugins/CodecSwitch/
 └── PlayerSettings.pm
 ```
 
+## 调试日志
+
+在 `Settings → CodecSwitch → 调试日志` 中可以设置以下类别的日志级别：
+
+- `plugin.codecswitch`
+- `plugin.sacdplayer`
+- `player.source`（LMS 转码）
+- `plugin.ffmpeg`
+
+级别为 `OFF`、`FATAL`、`ERROR`、`WARN`、`INFO`、`DEBUG`。修改立即生效并写入 LMS 日志配置。仅在排查问题时使用 `DEBUG`，可能产生较大的日志文件。
+
 ## 开发
 
 ```sh

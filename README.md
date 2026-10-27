@@ -181,6 +181,19 @@ fills gaps and handles DSD composition.
 profiles with an `R` capability (the remote profile uses the `-1` duplicate
 instance suffix understood by LMS).
 
+## Debug logging
+
+`Settings → CodecSwitch → Debug logging` lets you set the log levels for:
+
+- `plugin.codecswitch`
+- `plugin.sacdplayer`
+- `player.source` (LMS transcoding)
+- `plugin.ffmpeg`
+
+Levels are `OFF`, `FATAL`, `ERROR`, `WARN`, `INFO` and `DEBUG`. Changes are
+applied immediately and persisted to the LMS logging configuration. Use
+`DEBUG` only while diagnosing; it can create large log files.
+
 ## Development
 
 ```sh
