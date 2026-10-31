@@ -41,11 +41,11 @@ is(call_hook(undef), 'mp3', 'target mapping forces the target LMS format');
 
 $prefs->client($client)->set('mapping', { flc => 'direct' });
 Plugins::CodecSwitch::Config->invalidate($client);
-is(call_hook(undef), undef, 'direct does not override the format');
-
-$prefs->client($client)->set('mapping', { flc => 'direct' });
-Plugins::CodecSwitch::Config->invalidate($client);
-is(call_hook(undef), undef, 'direct does not override the format');
+# A target profile from another plugin (e.g. FFmpeg flc->aac) must not win
+# when the source is set to pass-through.
+$Slim::Player::TranscodingHelper::commandTable{"flc-aac-*-$client->{id}"} = 'EXTERNAL-AAC';
+is(call_hook(undef), 'flc', 'direct forces the source format');
+delete $Slim::Player::TranscodingHelper::commandTable{"flc-aac-*-$client->{id}"};
 
 $prefs->client($client)->set('mapping', { flc => 'mp3' });
 Plugins::CodecSwitch::Config->invalidate($client);

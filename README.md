@@ -7,8 +7,9 @@
 `CodecSwitch` gives each player its own source-codec policy. For every source
 codec you can choose:
 
-- **Pass-through** — the plugin does not force a target; LMS plays the original
-  stream when the player supports it and keeps its normal fallback otherwise.
+- **Pass-through** — the plugin keeps the original source format when the player
+  supports it and does not let another target profile hijack the selection;
+  otherwise LMS's normal fallback applies.
 - **Convert to a target codec** — FLAC, WAV, AIFF/raw PCM, MP3, AAC, Ogg
   Vorbis, Opus or ALAC (ALAC is experimental).
 
@@ -73,8 +74,9 @@ Default: every source is pass-through.
 
 ### Direct / pass-through semantics
 
-Pass-through means "the plugin does not force a target codec". If the player
-supports the source codec, LMS streams it directly. If not, LMS's existing
+Pass-through means "keep the original source codec". If the player supports
+it, CodecSwitch explicitly selects that format so that another plugin's target
+profile cannot override it. If the player does not support it, LMS's existing
 fallback rules still apply.
 
 ## Target formats

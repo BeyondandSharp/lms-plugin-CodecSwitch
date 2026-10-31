@@ -135,7 +135,19 @@ sub _getConvertCommand2 {
     return $orig_get_convert->(@args) unless $track && $client;
 
     my $decision = Plugins::CodecSwitch::Config->decision($track, $client);
-    return $orig_get_convert->(@args) unless $decision->{action} eq 'target';
+
+    if ($decision->{action} eq 'direct') {
+        # Do not merely leave the format choice to LMS: other plugins may have
+        # registered target profiles (for example FFmpeg's flc->aac), and LMS
+        # may select one when the player advertises that target before the
+        # source format.  Pass-through means the original source format.
+        if ($source && grep { $_ eq $source }
+            Plugins::CodecSwitch::Config->player_formats($client)) {
+            $args[5] = $source;
+            $log->debug("forcing direct source $source for " . _client_name($client));
+        }
+        return $orig_get_convert->(@args);
+    }
 
     if ($dsd_provider) {
         my $chained = __PACKAGE__->_chain_after_sacd(\@args, $client, $decision, $want);

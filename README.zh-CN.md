@@ -6,7 +6,7 @@
 
 `CodecSwitch` 为每个播放器单独配置源编码策略。对每种源编码可以选择：
 
-- **直出** — 插件不强制目标编码；播放器支持时由 LMS 直接播放，否则走 LMS 原有回退逻辑。
+- **直出** — 播放器支持源格式时，插件显式保持源格式，不允许其他目标 profile 抢占；否则走 LMS 原有回退逻辑。
 - **转换为目标编码** — FLAC、WAV、AIFF/raw PCM、MP3、AAC、Ogg Vorbis、Opus 或 ALAC（ALAC 实验性）。
 
 插件不修改 LMS 核心文件，只按播放器动态注册 `Slim::Player::TranscodingHelper` profile，并在启用期间包装 `getConvertCommand2`。
