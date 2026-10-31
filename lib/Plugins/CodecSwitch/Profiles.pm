@@ -63,49 +63,56 @@ sub setup {
         next if Plugins::CodecSwitch::Config->is_dsd_source($source)
             && Plugins::CodecSwitch::Capabilities->has_dsd_provider($client, $source);
 
-        if ($formats{$source}
+        my $mapping = Plugins::CodecSwitch::Config->mapping_for($client);
+        my $mapped  = $mapping->{$source} || 'direct';
+
+        # Only the selected mapping may contribute a profile.  Registering all
+        # target profiles makes LMS choose e.g. flc->alc just because the
+        # player advertises "alc" before "flc", even when the source is set to
+        # pass-through.
+        if ($mapped eq 'direct') {
+            if ($formats{$source}
+                && !Plugins::CodecSwitch::Capabilities->has_external_profile(
+                    $client, $source, $source, 0)) {
+                $class->_add(
+                    $clientid,
+                    "$source-$source-*-$clientid",
+                    '-',
+                    { I => 'noArgs', F => 'noArgs', R => 'noArgs' },
+                );
+                $count++;
+            }
+            next;
+        }
+
+        my $target = Plugins::CodecSwitch::Config->target_by_key($mapped) or next;
+        next unless grep { $formats{$_} } @{ $target->{formats} };
+        next unless Plugins::CodecSwitch::Config->resolve_target($client, $target->{key});
+
+        my $local = Plugins::CodecSwitch::Toolchain->plan($client, $source, $target->{key}, 0);
+        if ($local && !$local->{direct}
             && !Plugins::CodecSwitch::Capabilities->has_external_profile(
-                $client, $source, $source, 0)) {
+                $client, $source, $local->{lms_format}, 0)) {
             $class->_add(
                 $clientid,
-                "$source-$source-*-$clientid",
-                '-',
-                { I => 'noArgs', F => 'noArgs', R => 'noArgs' },
+                "$source-$local->{lms_format}-*-$clientid",
+                $local->{command},
+                $local->{capabilities},
             );
             $count++;
         }
 
-        for my $target (Plugins::CodecSwitch::Config->targets) {
-            next unless grep { $formats{$_} } @{ $target->{formats} };
-
-            my $resolved = Plugins::CodecSwitch::Config->resolve_target($client, $target->{key});
-            next unless $resolved;
-
-            my $local = Plugins::CodecSwitch::Toolchain->plan($client, $source, $target->{key}, 0);
-            if ($local && !$local->{direct}
-                && !Plugins::CodecSwitch::Capabilities->has_external_profile(
-                    $client, $source, $local->{lms_format}, 0)) {
-                $class->_add(
-                    $clientid,
-                    "$source-$local->{lms_format}-*-$clientid",
-                    $local->{command},
-                    $local->{capabilities},
-                );
-                $count++;
-            }
-
-            my $remote = Plugins::CodecSwitch::Toolchain->plan($client, $source, $target->{key}, 1);
-            if ($remote && !$remote->{direct}
-                && !Plugins::CodecSwitch::Capabilities->has_external_profile(
-                    $client, $source, $remote->{lms_format}, 1)) {
-                $class->_add(
-                    $clientid,
-                    "$source-$remote->{lms_format}-*-$clientid-1",
-                    $remote->{command},
-                    $remote->{capabilities},
-                );
-                $count++;
-            }
+        my $remote = Plugins::CodecSwitch::Toolchain->plan($client, $source, $target->{key}, 1);
+        if ($remote && !$remote->{direct}
+            && !Plugins::CodecSwitch::Capabilities->has_external_profile(
+                $client, $source, $remote->{lms_format}, 1)) {
+            $class->_add(
+                $clientid,
+                "$source-$remote->{lms_format}-*-$clientid-1",
+                $remote->{command},
+                $remote->{capabilities},
+            );
+            $count++;
         }
     }
 

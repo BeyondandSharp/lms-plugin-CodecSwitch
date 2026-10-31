@@ -4,8 +4,10 @@ use Test::More;
 
 use lib 'lib', 't/lib';
 use CodecSwitchTest qw(reset_env fake_client set_formats);
+use Slim::Utils::Prefs;
 use Slim::Player::TranscodingHelper;
 use Plugins::CodecSwitch::Capabilities;
+use Plugins::CodecSwitch::Config;
 use Plugins::CodecSwitch::Profiles;
 
 reset_env();
@@ -48,7 +50,11 @@ ok(!Plugins::CodecSwitch::Capabilities->has_dsd_provider($client, 'dff'),
 
 
 # A provider may overwrite a CodecSwitch-managed client profile.  Once the
-# command changes, it must be treated as external.
+# command changes, it must be treated as external.  A managed DSD profile only
+# exists when the source is mapped to a target; direct DSD is provider-owned.
+my $prefs = preferences('plugin.codecswitch');
+$prefs->client($client)->set('mapping', { dff => 'flc' });
+Plugins::CodecSwitch::Config->invalidate($client);
 Plugins::CodecSwitch::Profiles->remove_all;
 Plugins::CodecSwitch::Profiles->setup($client);
 my $managed_key = "dff-flc-*-$id";
